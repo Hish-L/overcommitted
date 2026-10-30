@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+    <title>OVERCOMMITTED — A Cyber Division Simulator</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="world-ui"></div>
+
+    <!-- ============================== HUD ============================== -->
+    <div id="hud" class="hidden">
+      <div id="orders"></div>
+      <div id="stats">
+        <div class="stat"><label>Shareholder value</label><b id="score">$0M</b></div>
+        <div class="stat"><label>Delivered</label><b id="delivered">0</b></div>
+        <div class="stat" id="backlog-box"><label>Backlog</label><b id="backlog">0 / 8</b></div>
+        <div class="stat"><label>Next ask in</label><b id="next-ask">—</b></div>
+        <div class="stat"><label>Clock</label><b id="clock">8:40 AM</b></div>
+        <div class="stat"><label>Free desks</label><b id="free-desks">—</b></div>
+        <div class="conf">
+          <label>Leadership confidence <span id="conf-val">100</span></label>
+          <div class="conf-bar"><div id="conf-fill"></div></div>
+        </div>
+      </div>
+      <div id="crosshair"></div>
+      <div id="toasts"></div>
+      <div id="held"></div>
+      <div id="status"></div>
+      <div id="controls">
+        <span><kbd>Mouse</kbd> look</span>
+        <span><kbd>WASD</kbd> move</span>
+        <span><kbd>Space</kbd> grab / place</span>
+        <span><kbd>E</kbd> hold to work</span>
+        <span><kbd>Shift</kbd> dash</span>
+        <span><kbd>Tab</kbd> field guide</span>
+        <span><kbd>P</kbd> pause</span>
+        <span id="mute" title="M to mute">🔊</span>
+      </div>
+    </div>
+    <div id="banner"></div>
+
+    <div id="training">
+      <div class="tr-box">
+        <div class="tr-title">🎓 MANDATORY SECURITY AWARENESS TRAINING</div>
+        <div class="tr-text">Your access has been suspended until you complete<br /><b>"Module 7: Don't Click Links (2026 Edition)"</b></div>
+        <div class="tr-bar"><div class="tr-fill"></div></div>
+        <div class="tr-count"></div>
+        <div class="tr-hint">Mash <kbd>E</kbd> / <kbd>Space</kbd> to click "Next" — the deadlines are still ticking!</div>
+      </div>
+    </div>
+
+    <!-- ============================== MENU ============================= -->
+    <div id="menu" class="screen">
+      <div class="menu-wrap">
+      <canvas id="menu-heroes"></canvas>
+      <div class="card">
+        <div class="logo">OVER<span>COMMITTED</span></div>
+        <div class="tagline">A Cyber Division Simulator 🛡️🔥</div>
+        <p class="premise">You're the only engineer. Leadership has <i>a few ideas</i>.</p>
+        <div class="buttons">
+          <button id="btn-start" class="primary">Check In ▶</button>
+          <button class="btn-guide">📖 Field Guide</button>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <div id="guide" class="screen hidden">
+      <div class="card wide">
+        <h2>📖 Cyber Division Field Guide</h2>
+        <div class="guide-content"></div>
+        <div class="buttons"><button id="btn-guide-close" class="primary">Got it (Tab)</button></div>
+      </div>
+    </div>
+
+    <div id="pause" class="screen hidden">
+      <div class="card">
+        <h2>☕ Taking a "quick break"</h2>
+        <p>Your calendar shows 6 meetings during this break.</p>
+        <div class="buttons">
+          <button id="btn-resume" class="primary">Back to work</button>
+          <button class="btn-guide">📖 Field Guide</button>
+          <button id="btn-quit">Quit to menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="gameover" class="screen hidden">
+      <div class="card">
+        <div class="go-title" id="go-title"></div>
+        <p id="go-reason"></p>
+        <div class="review">
+          <label>Annual performance review</label>
+          <div id="go-review-title"></div>
+          <p id="go-review-text"></p>
+        </div>
+        <div id="go-stats"></div>
+        <div id="go-best"></div>
+        <div class="buttons"><button id="btn-restart" class="primary">Try again next quarter ↻</button></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
