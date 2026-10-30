@@ -472,7 +472,7 @@ export function buildCity(scene, W, H) {
   // sky dome
   const skyGeo = new THREE.SphereGeometry(1400, 32, 16);
   const cols = [];
-  const top = new THREE.Color(0x3f86c9), hor = new THREE.Color(0xd4e6f3);
+  const top = new THREE.Color(0x8a9bb0), hor = new THREE.Color(0xb4bac4);
   const pos = skyGeo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const k = Math.max(0, pos.getY(i) / 1400);

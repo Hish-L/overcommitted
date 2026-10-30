@@ -49,6 +49,7 @@ export function buildWorld(scene) {
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 10, bottom: -10, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
+  sun.shadow.radius = 4;
   scene.add(sun);
 
   // --- floor --------------------------------------------------------------
@@ -139,8 +140,9 @@ export function buildWorld(scene) {
       }
       if (ch === 'p') {
         const p = M.makePlanterSegment();
-        p.position.set(x, 0, z - 0.05);
-        p.rotation.y = Math.PI; // low trough toward the room, tall one against the glass
+        // flush against the glass, same depth as the white wall beside it
+        p.position.set(x, 0, z + 0.4 - M.PLANTER_DEPTH / 2);
+        p.rotation.y = Math.PI;
         scene.add(p);
         if (r === H - 1) {
           const win = M.makeWindowWall();
@@ -308,13 +310,10 @@ export function buildWorld(scene) {
       case 'C': model = M.makeCubicleDesk(false); slotLocal.set(0, 0.89, 0.16); break;
       case 'S': model = M.makeServerRack(); slotLocal.set(0, 0.86, 0.5); break;
       case 'J': model = M.makeCoffeeMachine(); break;
-      case 'P': model = M.makePrinter(); slotLocal.set(0, 0.97, 0.28); break;
       case 'F': model = M.makeCabinet(); slotLocal.set(0, 0.87, 0.55); break;
       case 'R': model = M.makeShredder(); slotLocal.set(0, 0.9, 0); break;
       case 'M': model = M.makeMeetingTable(); slotLocal.set(-0.1, 0.82, 0.1); break;
       case 'D': model = M.makeBoardroomWindow(); slotLocal.set(0, 0.92, 0.1); break;
-      case 'A': model = M.makeDesk(0x5b3a29); break;
-      case '$': model = M.makeDesk(0x2f4f3f); break;
       default: model = M.makeDesk();
     }
     if (key === 'W' || key === 'C' || onDesk) model.scale.setScalar(DESK_SCALE);
@@ -343,7 +342,7 @@ export function buildWorld(scene) {
     if (def.shirt != null || def.regular) {
       npc = def.regular === 'goatee' ? M.makeGoateeGuy()
         : def.regular === 'hacker' ? M.makeHacker()
-        : M.makePerson({ shirt: def.shirt, tie: key === 'A' || key === '$' });
+        : M.makePerson({ shirt: def.shirt });
       if (onDesk) {
         // pulled up to the desk edge facing their monitor, legs under the desk
         const chair = model.userData.chair;
@@ -392,8 +391,6 @@ export function buildWorld(scene) {
       if (def.kind === 'dispenser') text = `${def.label} ${ITEMS[def.item].emoji}`;
       if (key === 'D') text = '🏛️ EXEC BOARDROOM — deliver 📁 here';
       if (key === 'M') text = '🗣️ Meeting Room';
-      if (key === 'A') text = 'Legal ⚖️';
-      if (key === '$') text = 'Finance 💰';
       if (key === 'S') text = 'Server Rack 🖥️';
       if (key === 'R') text = 'Shredder 🗑️';
       const bg = def.kind === 'dispenser' ? '#1d2533' : def.kind === 'deliver' ? '#8a6d1d' : '#3a2050';
@@ -432,7 +429,6 @@ export function buildWorld(scene) {
 
     return {
       key, def, kind: def.kind, c, r, x, z, dir, group, model, npc, label, icon, slot, bump,
-      // dispensers can be reorganized at runtime, so copy their data
       dispense: def.kind === 'dispenser' ? { item: def.item, label: def.label, lines: def.lines } : null,
       item: null,
       progress: 0,

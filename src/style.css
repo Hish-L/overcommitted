@@ -1,6 +1,6 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #1b2130; }
-body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color: #f2f4f8; user-select: none; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #f2f4f8; user-select: none; }
 #app canvas { display: block; filter: saturate(1.3) contrast(1.05); }
 .hidden { display: none !important; }
 kbd {
@@ -38,39 +38,44 @@ kbd {
 @keyframes wobble { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
 
 #stats {
-  position: absolute; top: 10px; right: 10px; width: 228px; background: rgba(18,22,33,.88);
-  border-radius: 12px; padding: 10px 12px; border: 1px solid #39435a;
+  position: absolute; top: 10px; right: 10px; width: 228px; padding: 10px 12px;
 }
 .stat { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; padding: 2px 0; }
-.stat label { color: #9aa6bf; }
+.stat label { color: rgba(255,255,255,.65); font-weight: 500; }
 .stat b { font-size: 15px; }
-#backlog-box.danger b { color: #ff5c5c; animation: blink .6s infinite; }
+#backlog-box.danger b { color: #ff6e6e; animation: blink .6s infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 .conf { margin-top: 6px; }
-.conf label { font-size: 12px; color: #9aa6bf; }
-.conf-bar { height: 12px; background: #2a3142; border-radius: 6px; overflow: hidden; margin-top: 3px; }
+.conf label { font-size: 12px; color: rgba(255,255,255,.65); }
+.conf-bar { height: 12px; background: rgba(255,255,255,.15); border-radius: 6px; overflow: hidden; margin-top: 3px; }
 #conf-fill { height: 100%; width: 100%; transition: width .2s; }
 
+/* translucent glass panels, after the racing starter kit's HUD */
+#stats, #held, .toast {
+  background: rgba(0,0,0,.45); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  text-shadow: 0 1px 2px rgba(0,0,0,.6); font-variant-numeric: tabular-nums;
+}
 #toasts {
   position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); width: 440px; display: flex; flex-direction: column-reverse; gap: 5px;
 }
 .toast {
-  background: rgba(18,22,33,.9); border-left: 5px solid #5b8cff; padding: 7px 10px; border-radius: 6px;
+  border-left: 4px solid #7fa8ff; padding: 7px 10px;
   font-size: 12px; animation: slidein .25s ease-out; transition: opacity .5s;
 }
-.toast.good { border-left-color: #3ddc84; }
-.toast.bad { border-left-color: #ff4d4d; }
+.toast.good { border-left-color: #5af168; }
+.toast.bad { border-left-color: #ff6e6e; }
 .toast.fade { opacity: 0; }
 @keyframes slidein { from { transform: translateY(20px); opacity: 0; } }
 
 #held {
   position: absolute; left: 10px; bottom: 46px; max-width: calc(50vw - 240px); display: flex; gap: 10px; align-items: center;
-  background: rgba(18,22,33,.9); border-radius: 12px; padding: 8px 14px; border: 1px solid #39435a;
+  padding: 8px 14px;
 }
 .h-emoji { font-size: 34px; }
 .h-name { font-weight: 800; }
-.h-hint { font-size: 13px; color: #c8d1e4; }
-.h-empty { font-size: 13px; color: #9aa6bf; }
+.h-hint { font-size: 13px; color: rgba(255,255,255,.8); }
+.h-empty { font-size: 13px; color: rgba(255,255,255,.65); }
 #status {
   display: none; position: absolute; bottom: 110px; left: 10px; background: #7a4a00; padding: 6px 12px;
   border-radius: 8px; font-weight: 700; animation: blink 1s infinite;
@@ -80,8 +85,10 @@ kbd {
   background: rgba(255,255,255,.85); box-shadow: 0 0 0 1.5px rgba(0,0,0,.45);
 }
 #controls {
-  position: absolute; bottom: 10px; left: 10px; right: 10px; display: flex; gap: 16px; font-size: 12px; color: #b5bfd4;
+  position: absolute; bottom: 10px; left: 10px; right: 10px; display: flex; gap: 16px; font-size: 12px; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
+#controls.mini .full { display: none; }
 #mute { margin-left: auto; }
 
 #banner {
@@ -94,6 +101,14 @@ kbd {
 .b-title { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
 .b-text { font-size: 15px; margin-top: 4px; }
 
+#title-card {
+  position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(.8); opacity: 0; pointer-events: none;
+  font-size: 67px; font-weight: 900; letter-spacing: 5px; color: #ffc23d;
+  text-shadow: 0 2px 0 #b35a00, 0 4px 0 #7a3a00, 0 6px 14px rgba(0,0,0,.85), 0 0 24px rgba(255,170,40,.55);
+  transition: opacity .3s, transform .3s cubic-bezier(.2,1.6,.4,1); white-space: nowrap;
+}
+#title-card.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
 #world-ui { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .bubble, .float { position: absolute; left: 0; top: 0; white-space: nowrap; }
 .bubble {
@@ -101,23 +116,9 @@ kbd {
   box-shadow: 0 2px 6px rgba(0,0,0,.3);
 }
 .float { font-weight: 800; font-size: 14px; text-shadow: 0 2px 0 #000, 0 0 6px #000; }
-.float.good { color: #6dff9e; }
-.float.bad { color: #ff7b7b; }
+.float.good { color: #5af168; }
+.float.bad { color: #ff6e6e; }
 .float.info { color: #fff; }
-
-/* ------------------------------------------------------------ training -- */
-#training { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.45); }
-.tr-box {
-  width: 460px; background: #f4f6fb; color: #223; border-radius: 10px; padding: 18px 22px; text-align: center;
-  box-shadow: 0 10px 40px rgba(0,0,0,.6); border-top: 30px solid #2d5bd1; animation: wobble .5s infinite;
-}
-.tr-title { font-weight: 900; color: #2d5bd1; }
-.tr-text { margin: 10px 0; font-size: 14px; }
-.tr-bar { height: 14px; background: #d6dbe8; border-radius: 7px; overflow: hidden; }
-.tr-fill { height: 100%; width: 0; background: #2d5bd1; transition: width .1s; }
-.tr-count { font-size: 12px; margin-top: 6px; color: #556; }
-.tr-hint { font-size: 13px; margin-top: 10px; font-weight: 700; }
-.tr-hint kbd { color: #fff; }
 
 /* ------------------------------------------------------------- screens -- */
 .screen {

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS } from './data.js';
 
 const $ = (sel) => document.querySelector(sel);
+const CONTROLS_FULL_FOR = 20; // seconds of play before the controls bar shrinks
 const fmt = (s) => {
   const neg = s < 0;
   s = Math.abs(Math.ceil(s));
@@ -32,7 +33,7 @@ export class UI {
         el = document.createElement('div');
         el.className = 'ticket enter';
         el.innerHTML = `
-          <div class="t-head"><span class="t-who">${o.urgent ? '🚨 ' : ''}${o.requester.who}</span><span class="t-time"></span></div>
+          <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span></div>
           <div class="t-name">${o.recipe.name}</div>
           <div class="t-needs">${o.recipe.needs.map((n) => `<span class="chip" data-n="${n}" title="${ITEMS[n].name}">${ITEMS[n].emoji}</span>`).join('')}</div>
           <div class="t-bar"><div></div></div>`;
@@ -43,7 +44,7 @@ export class UI {
       const p = Math.max(0, o.timeLeft / o.timeTotal);
       const bar = el.querySelector('.t-bar div');
       bar.style.width = `${p * 100}%`;
-      bar.style.background = p > 0.5 ? '#3ddc84' : p > 0.25 ? '#ffc23d' : '#ff4d4d';
+      bar.style.background = p > 0.5 ? '#5af168' : p > 0.25 ? '#ffcc4d' : '#ff6e6e';
       el.querySelector('.t-time').textContent = o.overdue ? `OVERDUE ${fmt(o.timeLeft)}` : fmt(o.timeLeft);
       el.classList.toggle('overdue', o.overdue);
       el.classList.toggle('urgent', o.urgent && !o.overdue);
@@ -60,16 +61,14 @@ export class UI {
     // meters
     const conf = Math.max(0, game.confidence);
     $('#conf-fill').style.width = `${conf}%`;
-    $('#conf-fill').style.background = conf > 60 ? '#3ddc84' : conf > 30 ? '#ffc23d' : '#ff4d4d';
+    $('#conf-fill').style.background = conf > 60 ? '#5af168' : conf > 30 ? '#ffcc4d' : '#ff6e6e';
     $('#conf-val').textContent = Math.round(conf);
     $('#score').textContent = `$${game.score}M`;
-    $('#delivered').textContent = `${game.stats.delivered}`;
-    $('#clock').textContent = game.clockLabel();
-    $('#free-desks').textContent = `${game.hotdesk.freeDesks().length}`;
     const bl = game.orders.length;
     $('#backlog').textContent = `${bl} / ${TUNING.maxBacklog}`;
     $('#backlog-box').classList.toggle('danger', bl >= TUNING.maxBacklog - 2);
-    $('#next-ask').textContent = game.state === 'playing' ? `${Math.max(0, Math.ceil(game.spawnIn))}s` : '—';
+    // full controls for the first stretch, then just the essentials
+    $('#controls').classList.toggle('mini', game.time > CONTROLS_FULL_FOR);
 
     this.updateBubbles(dt);
   }
@@ -110,14 +109,12 @@ export class UI {
     this.bannerT = setTimeout(() => (el.className = ''), 3800);
   }
 
-  showTraining(tr) {
-    const el = $('#training');
-    el.style.display = 'flex';
-    el.querySelector('.tr-fill').style.width = `${(tr.have / tr.need) * 100}%`;
-    el.querySelector('.tr-count').textContent = `Slide ${tr.have + 1} of ${tr.need}`;
-  }
-  hideTraining() {
-    $('#training').style.display = 'none';
+  titleCard(text, ms = 2000) {
+    const el = $('#title-card');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(this.titleT);
+    this.titleT = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   // -------------------------------------------- world-anchored text (DOM) --
@@ -172,6 +169,7 @@ export class UI {
     this.orderEls.clear();
     $('#toasts').innerHTML = '';
     $('#banner').className = '';
+    $('#title-card').classList.remove('show');
     this.setStatus(null);
     this.lastHeldKey = null;
   }
@@ -213,7 +211,7 @@ export class UI {
   buildGuide() {
     const where = {};
     for (const [k, d] of Object.entries(STATIONS)) if (d.kind === 'dispenser') where[d.item] = d.label;
-    const procLabel = { workstation: '💻 Dev Workstation <i>(hold E)</i>', meeting: '🗣️ Meeting Room <i>(auto — don\'t let it run long!)</i>', legal: '⚖️ Legal <i>(auto)</i>', finance: '💰 Finance <i>(auto)</i>', server: '🖥️ Server Rack <i>(auto — grab it before it catches fire!)</i>' };
+    const procLabel = { workstation: '💻 Dev Workstation <i>(hold E)</i>', meeting: '🗣️ Meeting Room <i>(auto — don\'t let it run long!)</i>', server: '🖥️ Server Rack <i>(auto — grab it before it catches fire!)</i>' };
     const rows = [];
     for (const [proc, map] of Object.entries(PROCESS)) {
       for (const [raw, out] of Object.entries(map)) {

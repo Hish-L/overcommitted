@@ -12,15 +12,15 @@ import { MenuHeroes } from './menuHeroes.js';
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap; // soft PCF was removed; blur comes from shadow.radius
 // Neutral keeps base colours true (ACES washes them out and darkens them)
 renderer.toneMapping = THREE.NeutralToneMapping;
 renderer.toneMappingExposure = 1.15;
 document.getElementById('app').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xd4e6f3);
-scene.fog = new THREE.Fog(0xd4e6f3, 140, 700);
+scene.background = new THREE.Color(0xb4bac4);
+scene.fog = new THREE.Fog(0xb4bac4, 140, 700);
 
 const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 3000);
 camera.rotation.order = 'YXZ';

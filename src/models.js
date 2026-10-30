@@ -588,17 +588,6 @@ export function makeCoffeeMachine() {
   return g;
 }
 
-export function makePrinter() {
-  const g = makeDesk(0x8b8b8b);
-  const p = box(0.62, 0.32, 0.5, 0xdedede);
-  p.position.set(0, 1.02, -0.1);
-  g.add(p);
-  const tray = box(0.4, 0.02, 0.25, 0xffffff);
-  tray.position.set(0, 0.95, 0.25);
-  g.add(tray);
-  return g;
-}
-
 export function makeCabinet() {
   const g = new THREE.Group();
   const c = box(0.8, 1.2, 0.7, 0x7d8794, { metalness: 0.4 });
@@ -643,24 +632,31 @@ export function makeOakTableSegment() {
   return g;
 }
 
-// One 1-tile segment of a two-tier planter: a low front trough and a taller
-// rear trough, both overflowing with foliage.
+// One 1-tile segment of a two-level planter: a low trough on the floor and a
+// shelf trough stacked directly above it on a front upright, open at the back
+// so the glass shows through. Same depth as the white wall so the two line up.
+export const PLANTER_DEPTH = OAK_DEPTH * 0.8 * 0.5;
 export function makePlanterSegment() {
   const g = new THREE.Group();
   const trough = 0xe2e0da;
   const greens = [0x3f9b3a, 0x57b947, 0x2f7d32, 0x6cc24a];
+  const D = PLANTER_DEPTH, SHELF_Y = 1.3;
   const tiers = [
-    { h: 0.4, d: 0.42, z: 0.18 },
-    { h: 0.8, d: 0.36, z: -0.22 },
+    { y: 0, h: 0.4 },
+    { y: SHELF_Y, h: 0.18 },
   ];
+  // one front upright per segment, so a run of segments reads as evenly spaced posts
+  const post = box(0.05, SHELF_Y, 0.05, trough);
+  post.position.set(-0.475, SHELF_Y / 2, D / 2 - 0.025);
+  g.add(post);
   for (const t of tiers) {
-    const b = box(1.0, t.h, t.d, trough);
-    b.position.set(0, t.h / 2, t.z);
+    const b = box(1.0, t.h, D, trough);
+    b.position.set(0, t.y + t.h / 2, 0);
     g.add(b);
     for (let i = 0; i < 5; i++) {
-      const r = 0.12 + Math.random() * 0.08;
+      const r = 0.1 + Math.random() * 0.07;
       const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat(greens[(Math.random() * greens.length) | 0]));
-      leaf.position.set(-0.4 + i * 0.2 + (Math.random() - 0.5) * 0.08, t.h + r * 0.6, t.z + (Math.random() - 0.5) * (t.d - 0.15));
+      leaf.position.set(-0.4 + i * 0.2 + (Math.random() - 0.5) * 0.08, t.y + t.h + r * 0.6, (Math.random() - 0.5) * 0.06);
       leaf.rotation.set(Math.random() * 3, Math.random() * 3, 0);
       leaf.castShadow = true;
       g.add(leaf);

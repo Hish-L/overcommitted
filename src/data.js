@@ -14,8 +14,6 @@ export const ITEMS = {
   exploit:    { name: 'Exploit Kit',         emoji: '💣', color: 0x444444, raw: true },
   logs:       { name: 'Raw Logs (4TB)',      emoji: '📜', color: 0xd9c9a3, raw: true },
   draft:      { name: 'Threat Model Draft',  emoji: '📝', color: 0xffffff, raw: true },
-  checklist:  { name: 'Compliance Checklist',emoji: '📋', color: 0x9ad0ff, raw: true },
-  budgetreq:  { name: 'Budget Request Form', emoji: '🧾', color: 0xfff1c9, raw: true },
   infraticket:{ name: 'Infra Ticket',        emoji: '🎫', color: 0xc6a7ff, raw: true },
 
   // cooked
@@ -23,8 +21,6 @@ export const ITEMS = {
   weapon:     { name: 'Weaponized Exploit',  emoji: '🗡️', color: 0xe05555 },
   dataset:    { name: 'Clean Dataset',       emoji: '📊', color: 0x4fa3ff },
   threatmodel:{ name: 'Aligned Threat Model',emoji: '🎯', color: 0xff7a59 },
-  signoff:    { name: 'Legal Sign-off',      emoji: '⚖️', color: 0xb58b4c },
-  budget:     { name: 'Approved Budget',     emoji: '💰', color: 0x3cb371 },
   infra:      { name: 'Provisioned Infra',   emoji: '🖥️', color: 0x8a8fff },
   coffee:     { name: 'Coffee',              emoji: '☕', color: 0x6f4e37 },
 
@@ -38,8 +34,6 @@ export const ITEMS = {
 export const PROCESS = {
   workstation: { apikey: 'llm', exploit: 'weapon', logs: 'dataset' },
   meeting:     { draft: 'threatmodel' },
-  legal:       { checklist: 'signoff' },
-  finance:     { budgetreq: 'budget' },
   server:      { infraticket: 'infra' },
 };
 
@@ -51,16 +45,12 @@ export const PROCESS = {
 export const STATIONS = {
   K: { kind: 'dispenser', item: 'apikey',      label: 'AI Vendor',      shirt: 0xff66aa,
        lines: ['Here\'s a key. Please don\'t commit it to GitHub.', 'Our model is 100% hallucination-free*', 'Enterprise tier is only $4M/yr!'] },
-  X: { kind: 'dispenser', item: 'exploit',     label: 'Red Team',       shirt: 0xcc2222,
+  X: { kind: 'dispenser', item: 'exploit',     label: 'Pentest Team',   shirt: 0xcc2222,
        lines: ['We popped prod again lol', 'Scope? What scope?', 'Fresh 0-day, still warm.'] },
   L: { kind: 'dispenser', item: 'logs',        label: 'SOC',            shirt: 0x2266cc,
        lines: ['4TB of logs. Mostly DNS.', 'I haven\'t slept since the SIEM migration.', 'Alert #48,211 today. Enjoy.'] },
   T: { kind: 'dispenser', item: 'draft',       label: 'Sec Architect',  shirt: 0x7755cc,
        lines: ['I drew boxes. Now we need a meeting.', 'It depends.', 'Have you considered... zero trust?'] },
-  G: { kind: 'dispenser', item: 'checklist',   label: 'GRC',            shirt: 0x22aa88,
-       lines: ['Only 412 controls this time!', 'Please map it to NIST, ISO AND SOC2.', 'Did you fill out the risk acceptance?'] },
-  P: { kind: 'dispenser', item: 'budgetreq',   label: 'Printer',        shirt: null,
-       lines: ['*whirr* PC LOAD LETTER', '*prints 1 page, jams twice*', '*smells like toner and despair*'] },
   H: { kind: 'dispenser', item: 'infraticket', label: 'IT Helpdesk',    shirt: 0x999999,
        lines: ['Have you tried turning it off and on?', 'Ticket submitted. ETA: Q7.', 'Please use the portal next time.'] },
   J: { kind: 'dispenser', item: 'coffee',      label: 'Coffee',         shirt: null,
@@ -72,10 +62,6 @@ export const STATIONS = {
 
   M: { kind: 'auto', proc: 'meeting', label: 'Meeting Room', time: 6, overrun: 7, ruin: 'scopecreep', shirt: 0x8899aa,
        lines: ['...synergy...', '...let\'s take this offline...', '...circle back...', '...can everyone see my screen?...'] },
-  A: { kind: 'auto', proc: 'legal',   label: 'Legal',   time: 7, shirt: 0x222233,
-       lines: ['Reviewing... *redlines everything*', 'We need to talk about liability.', 'Approved, with 37 conditions.'] },
-  $: { kind: 'auto', proc: 'finance', label: 'Finance', time: 8, shirt: 0x2e8b57,
-       lines: ['Can you do it for half?', 'This wasn\'t in the forecast.', 'Fine. Approved. Don\'t tell anyone.'] },
   S: { kind: 'auto', proc: 'server',  label: 'Server Rack', time: 5, overrun: 6, ruin: 'fire',
        lines: ['*fans spinning*', '*blinks aggressively*'] },
 
@@ -104,7 +90,7 @@ export const STATIONS = {
 export const MAP = [
   '#wwwOOOOOOOOOOOOOOOww###',
   'J......................#',
-  'P......................#',
+  '#......................#',
   'R..WW..WW..WW..WW..WY..<',
   'D..WW..WW..WW..WW..Wh..#',
   'D..WW..WW..WW..WW..Bh..#',
@@ -115,26 +101,24 @@ export const MAP = [
 ];
 
 // Stations staffed by a person who sits at a random desk (repeats = more desks).
-export const DESK_STATIONS = ['K', 'X', 'L', 'T', 'G', 'H', 'F', 'A', 'A', '$', '$'];
+export const DESK_STATIONS = ['K', 'X', 'L', 'T', 'H', 'F'];
 
 // ---------------------------------------------------------------------------
 // INITIATIVES (recipes) — what the higher-ups want. tier unlocks over time.
 // ---------------------------------------------------------------------------
 export const RECIPES = [
-  { name: 'SOC Automation (SOAR)',          needs: ['dataset', 'llm'],                         tier: 0 },
-  { name: 'Phishing Simulation Campaign',   needs: ['signoff', 'coffee'],                      tier: 0 },
-  { name: '"Just Add AI" Rebrand',          needs: ['llm', 'coffee'],                          tier: 0 },
-  { name: 'Red Team Exercise',              needs: ['weapon', 'threatmodel'],                  tier: 0 },
-  { name: 'AI Code Scanning Harness',       needs: ['llm', 'dataset', 'signoff'],              tier: 1 },
-  { name: 'Offensive Security Harness',     needs: ['weapon', 'llm', 'signoff'],               tier: 1 },
-  { name: 'Zero Trust Rollout',             needs: ['threatmodel', 'budget', 'infra'],         tier: 1 },
-  { name: 'Security Data Lake',             needs: ['dataset', 'infra', 'budget'],             tier: 1 },
-  { name: 'Deepfake CEO Detector',          needs: ['dataset', 'llm', 'budget'],               tier: 1 },
-  { name: 'Blockchain Firewall',            needs: ['budget', 'coffee', 'threatmodel'],        tier: 1 },
-  { name: 'AI Agentic Defense Deployment',  needs: ['llm', 'dataset', 'infra', 'threatmodel'], tier: 2 },
-  { name: 'Quantum-Safe Crypto Migration',  needs: ['threatmodel', 'budget', 'infra', 'signoff'], tier: 2 },
-  { name: 'Autonomous AI Pentest Platform', needs: ['weapon', 'llm', 'infra', 'signoff'],      tier: 2 },
-  { name: 'Single Pane of Glass™',          needs: ['dataset', 'infra', 'budget', 'coffee'],   tier: 2 },
+  { name: 'SOC Automation (SOAR)',          needs: ['dataset', 'llm'],                           tier: 0 },
+  { name: 'Phishing Simulation Campaign',   needs: ['threatmodel', 'coffee'],                    tier: 0 },
+  { name: '"Just Add AI" Rebrand',          needs: ['llm', 'coffee'],                            tier: 0 },
+  { name: 'Pentest Engagement',             needs: ['weapon', 'threatmodel'],                    tier: 0 },
+  { name: 'AI Code Scanning Harness',       needs: ['llm', 'dataset', 'weapon'],                 tier: 1 },
+  { name: 'Offensive Security Harness',     needs: ['weapon', 'llm', 'coffee'],                  tier: 1 },
+  { name: 'Deepfake CEO Detector',          needs: ['dataset', 'llm', 'threatmodel'],            tier: 1 },
+  { name: 'Zero Trust Rollout',             needs: ['threatmodel', 'infra', 'coffee'],           tier: 1 },
+  { name: 'Security Data Lake',             needs: ['dataset', 'infra', 'llm'],                  tier: 1 },
+  { name: 'AI Agentic Defense Deployment',  needs: ['llm', 'dataset', 'threatmodel', 'coffee'],  tier: 2 },
+  { name: 'Autonomous AI Pentest Platform', needs: ['weapon', 'llm', 'threatmodel', 'dataset'],  tier: 2 },
+  { name: 'Single Pane of Glass™',          needs: ['dataset', 'infra', 'llm', 'coffee'],        tier: 2 },
 ];
 
 export const REQUESTERS = [
@@ -170,7 +154,7 @@ export const TUNING = {
   fireSpreadTime: 12,        // seconds until an unattended fire spreads
   extinguishTime: 1.4,
   tierUnlock: [0, 60, 150],  // seconds into the game each tier unlocks
-  chaosStart: 50,
+  chaosStart: 90,
   chaosEvery: [35, 55],
   // office clock + hot-desking
   dayStart: 8 * 60 + 40,     // game starts at 8:40am (minutes after midnight)

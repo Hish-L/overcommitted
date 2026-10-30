@@ -26,7 +26,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const STATION_FOR = {};
 for (const [proc, map] of Object.entries(PROCESS)) for (const raw of Object.keys(map)) STATION_FOR[raw] = proc;
-const PROC_NAME = { workstation: '💻 Dev Workstation (hold E)', meeting: '🗣️ Meeting Room', legal: '⚖️ Legal', finance: '💰 Finance', server: '🖥️ Server Rack' };
+const PROC_NAME = { workstation: '💻 Dev Workstation (hold E)', meeting: '🗣️ Meeting Room', server: '🖥️ Server Rack' };
 
 // ---------------------------------------------------------------------------
 class Item {
@@ -161,7 +161,6 @@ export class Game {
     this.score = 0;
     this.chaosIn = TUNING.chaosStart;
     this.slowT = 0;
-    this.training = null;
     this.shake = 0;
     this.lastRecipe = null;
     this.gameOverReason = null;
@@ -254,6 +253,7 @@ export class Game {
     this.player.rotation.y = this.yaw;
     this.wobble = 0;
     this.ui.show('#hud', true);
+    this.ui.titleCard('SCA Division');
     this.ui.toast('Welcome to the Cyber Division! Leadership has a few small asks...', 'info');
   }
 
@@ -304,20 +304,6 @@ export class Game {
     const p = this.player;
     const ud = p.userData;
 
-    if (this.training) {
-      if (input.pressed('KeyE') || input.pressed('KeyJ') || input.pressed('Space')) {
-        this.training.have++;
-        sfx.type();
-        if (this.training.have >= this.training.need) {
-          this.training = null;
-          sfx.done();
-          this.ui.hideTraining();
-          this.ui.toast('Training complete! Certificate #84,112 added to your profile.', 'good');
-        } else this.ui.showTraining(this.training);
-      }
-      this.animatePlayer(dt, false);
-      return;
-    }
 
     // turning: mouse (see look()) or arrow keys
     if (input.down('ArrowLeft')) this.yaw += TURN_SPEED * dt;
@@ -460,8 +446,8 @@ export class Game {
       ud.armL.rotation.x = -swing * 0.8;
       ud.armR.rotation.x = swing * 0.8;
     }
-    // side-to-side rock from the feet, plus the training-video sway
-    ud.body.rotation.z = s * 0.2 * w + (this.training ? Math.sin(this.time * 6) * 0.1 : 0);
+    // side-to-side rock from the feet
+    ud.body.rotation.z = s * 0.2 * w;
   }
 
   // held item sits bottom-right of view and bobs with your steps
@@ -917,7 +903,7 @@ export class Game {
     if (this.chaosIn > 0) return;
     const [a, b] = TUNING.chaosEvery;
     this.chaosIn = a + Math.random() * (b - a);
-    const events = ['incident', 'replyall', 'reorg', 'audit', 'training'];
+    const events = ['incident', 'replyall', 'audit'];
     this.triggerChaos(pick(events));
   }
 
@@ -941,35 +927,9 @@ export class Game {
         sfx.email();
         break;
       }
-      case 'reorg': {
-        const people = this.world.stations.filter((s) => s.kind === 'dispenser' && s.npc && s.key !== 'F');
-        if (people.length < 2) return;
-        const a = pick(people);
-        let b = pick(people);
-        while (b === a) b = pick(people);
-        [a.dispense, b.dispense] = [b.dispense, a.dispense];
-        const na = a.npc, nb = b.npc;
-        a.group.remove(na); b.group.remove(nb);
-        a.group.add(nb); b.group.add(na);
-        a.npc = nb; b.npc = na;
-        for (const s of [a, b]) {
-          if (s.label) setLabel(s.label, `${s.dispense.label} ${ITEMS[s.dispense.item].emoji}`, '#7a1d1d');
-          s.icon.material.map = emojiTexture(ITEMS[s.dispense.item].emoji);
-          this.npcSay(s, 'I sit here now. Nobody told me either.');
-        }
-        this.ui.banner('🔀 REORG!', `${a.dispense.label} and ${b.dispense.label} swapped desks. Nobody updated the org chart.`, 'warn');
-        sfx.alarm();
-        break;
-      }
       case 'audit': {
         this.ui.banner('🕵️ SURPRISE AUDIT!', 'The Auditor needs something delivered ASAP. Like, yesterday.', 'warn');
         this.spawnOrder({ urgent: true, time: 50, maxTier: 0, requester: 'Auditor' });
-        break;
-      }
-      case 'training': {
-        this.training = { need: 14, have: 0 };
-        this.ui.showTraining(this.training);
-        sfx.alarm();
         break;
       }
     }
@@ -980,8 +940,6 @@ export class Game {
     if (this.state !== 'playing') return;
     this.state = 'over';
     this.gameOverReason = reason;
-    this.training = null;
-    this.ui.hideTraining();
     sfx.gameover();
     this.ui.showGameOver(this);
   }
