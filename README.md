@@ -11,6 +11,18 @@ npm run dev        # open the URL it prints (http://localhost:5173)
 npm run build      # static build in dist/ (host it anywhere)
 ```
 
+## GitHub Pages
+
+Play at https://hish-l.github.io/overcommitted/.
+
+Pushes to `main` build and deploy the game through `.github/workflows/deploy.yml`.
+You can also run the workflow manually from GitHub's Actions tab. Pages uses
+**GitHub Actions** as its deployment source.
+
+Vite's base path is `/overcommitted/` in `vite.config.js`. After building, run
+`npm run preview` and open the printed URL with `/overcommitted/` to preview
+the deployed layout. Update the base path if the repository name or hosting changes.
+
 ## How to play
 
 | Key | Action |
