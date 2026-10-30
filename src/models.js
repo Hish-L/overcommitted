@@ -208,10 +208,11 @@ export function makeGoateeGuy() {
     body.add(b);
   }
 
-  // glasses
+  // rectangular glasses: a 4-segment torus turned 45° is a square frame, stretched wide
   const frame = mat(0x111111);
   for (const s of [-1, 1]) {
-    const lens = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.007, 6, 16), frame);
+    const lens = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.007, 6, 4).rotateZ(Math.PI / 4), frame);
+    lens.scale.set(1.25, 0.85, 1);
     lens.position.set(s * 0.065, 0.02, 0.18);
     const arm = box(0.008, 0.008, 0.17, 0x111111);
     arm.position.set(s * 0.115, 0.03, 0.09);
@@ -385,6 +386,68 @@ export function tickMatrix(t) {
     drops[i] = y * size > c.height && Math.random() > 0.95 ? 0 : y + 1;
   });
   tex.needsUpdate = true;
+  if (goatee) drawGoateeScreen();
+}
+
+// The goatee guy's monitor: two windows side by side, a Wests Tigers picture
+// on the left and a terminal running the matrix rain on the right.
+let goatee = null;
+function windowFrame(g, x, y, w, h, title) {
+  g.fillStyle = '#3a3f46';
+  g.fillRect(x, y, w, h);
+  g.fillStyle = '#e8e8e8';
+  g.fillRect(x, y, w, 18);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => {
+    g.fillStyle = c;
+    g.beginPath();
+    g.arc(x + 10 + i * 13, y + 9, 4, 0, Math.PI * 2);
+    g.fill();
+  });
+  g.fillStyle = '#444';
+  g.font = '11px sans-serif';
+  g.textAlign = 'center';
+  g.fillText(title, x + w / 2, y + 13);
+}
+function drawGoateeScreen() {
+  const { c, g, pic } = goatee;
+  const W = c.width, H = c.height, pad = 10, ww = W / 2 - pad * 1.5, wh = H - pad * 2;
+  g.fillStyle = '#1b3a5c'; // desktop wallpaper
+  g.fillRect(0, 0, W, H);
+  windowFrame(g, pad, pad, ww, wh, 'tigers.jpg');
+  g.drawImage(pic, pad + 2, pad + 18, ww - 4, wh - 20);
+  const tx = W / 2 + pad / 2;
+  windowFrame(g, tx, pad, ww, wh, 'zsh — 80×24');
+  g.drawImage(matrix.c, 0, 0, matrix.c.width / 2, matrix.c.height, tx + 2, pad + 18, ww - 4, wh - 20);
+  goatee.tex.needsUpdate = true;
+}
+export function goateeScreenMaterial() {
+  if (!goatee) {
+    matrixScreenMaterial(); // shares the rain canvas
+    const c = document.createElement('canvas');
+    c.width = 768;
+    c.height = 256;
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.repeat.x = -1; // seen from inside the curved screen's cylinder
+    const pic = document.createElement('canvas');
+    pic.width = 360;
+    pic.height = 216;
+    goatee = { c, g: c.getContext('2d'), pic, tex, mat: new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }) };
+    drawGoateeScreen();
+    // swap in the real Wests Tigers art once it loads: square, so fit it whole
+    // and fill the sides with its dark jungle tone
+    const img = new Image();
+    img.onload = () => {
+      const pg = pic.getContext('2d'), s = Math.min(pic.width / img.width, pic.height / img.height);
+      pg.fillStyle = '#241915';
+      pg.fillRect(0, 0, pic.width, pic.height);
+      pg.drawImage(img, (pic.width - img.width * s) / 2, (pic.height - img.height * s) / 2, img.width * s, img.height * s);
+      drawGoateeScreen();
+    };
+    img.src = `${import.meta.env.BASE_URL}wests-tigers.png`;
+  }
+  return goatee.mat;
 }
 
 // Sit a person (from makePerson) down: drop the hips onto a chair seat and

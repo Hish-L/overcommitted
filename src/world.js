@@ -318,6 +318,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
     }
     if (key === 'W' || key === 'C' || onDesk) model.scale.setScalar(DESK_SCALE);
     if (def.regular === 'hacker') model.userData.screen.material = M.matrixScreenMaterial();
+    if (def.regular === 'goatee') model.userData.screen.material = M.goateeScreenMaterial();
     group.add(model);
 
     // back wall for border stations so the room stays enclosed

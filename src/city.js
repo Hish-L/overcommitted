@@ -391,6 +391,50 @@ function harbourBridge(scene) {
   }
 }
 
+function sydneyTower(scene, x, z) {
+  // Centrepoint (Sydney Tower Eye), Pitt & Market St, south-east of us. Slim
+  // shaft braced by cable stays, golden turret near the top, then a spire.
+  // Height compressed so the turret sits in frame from our floor.
+  const g = new THREE.Group();
+  g.position.set(x, GROUND, z);
+  scene.add(g);
+  const concrete = lambert({ color: 0xd8d8d2 });
+  const steel = lambert({ color: 0x9aa0a4 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xd9a93e, emissive: 0x3a2706, metalness: 0.6, roughness: 0.35 });
+  const dark = lambert({ color: 0x2f3a42 });
+  const cyl = (r1, r2, h, y, mat, segs = 24) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, segs), mat);
+    m.position.y = y + h / 2;
+    g.add(m);
+  };
+  const podH = 10, shaftTop = 132;
+  cyl(13, 13, podH, 0, concrete, 8); // Westfield podium
+  cyl(2.4, 2.4, shaftTop - podH, podH, concrete, 12);
+  // cable stays: from a ring on the podium roof to collars on the shaft
+  for (const collar of [70, shaftTop - 2]) {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const from = new THREE.Vector3(Math.cos(a) * 9, podH, Math.sin(a) * 9);
+      const to = new THREE.Vector3(Math.cos(a) * 2.6, collar, Math.sin(a) * 2.6);
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, from.distanceTo(to), 4), steel);
+      c.position.copy(from).add(to).multiplyScalar(0.5);
+      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+      g.add(c);
+    }
+  }
+  // turret: flared underside, gold bands alternating with dark window bands
+  cyl(7.5, 2.6, 4, shaftTop, gold);
+  let y = shaftTop + 4;
+  for (const [r, h, mat] of [[7.6, 1.5, gold], [7.4, 2.2, dark], [7.6, 1.2, gold], [7.4, 2.2, dark], [7.6, 1.5, gold], [7.2, 1.6, dark], [7.4, 1.4, gold]]) {
+    cyl(r, r, h, y, mat);
+    y += h;
+  }
+  cyl(4, 7.4, 3, y, gold); // domed roof
+  y += 3;
+  cyl(0.5, 1.6, 26, y, steel, 8); // spire
+  cyl(1.6, 1.6, 0.6, y + 6, steel, 8);
+}
+
 function ferry(scene) {
   const g = new THREE.Group();
   const hull = new THREE.Mesh(new THREE.BoxGeometry(9, 1.4, 3), lambert({ color: 0x1f6b3a }));
@@ -532,6 +576,7 @@ export function buildCity(scene, W, H) {
     addBuilding(scene, { x: px, z: pz, w: pw, d: pd, h: rand(5, 9), mats: podium, roofKit: false });
   }
   harbourBridge(scene);
+  sydneyTower(scene, -290, 120);
 
   // generic city fabric
   const palettes = [
@@ -553,6 +598,7 @@ export function buildCity(scene, W, H) {
     { x0: -28, x1: 12, z0: -66, z1: -14 }, // Amex, King Street Wharf (and the sightline to it)
     { x0: 12, x1: 130, z0: -105, z1: -22 }, // Barangaroo South
     { x0: -30, x1: 30, z0: 14, z1: 40 },    // keep the Kent St facade visible
+    { x0: -305, x1: -275, z0: 105, z1: 135 }, // Sydney Tower
   ];
   for (let i = -14; i <= 9; i++) {
     for (let j = -14; j <= 12; j++) {
