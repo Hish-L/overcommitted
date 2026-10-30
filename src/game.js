@@ -6,6 +6,7 @@ import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, setLabel, tickMatr
 import { HotDesk } from './hotdesk.js';
 import { makeFire, animateFire } from './world.js';
 import { sfx } from './audio.js';
+import { keyHint } from './device.js';
 
 const PLAYER_R = 0.3;
 const EYE_HEIGHT = 1.35;
@@ -26,7 +27,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const STATION_FOR = {};
 for (const [proc, map] of Object.entries(PROCESS)) for (const raw of Object.keys(map)) STATION_FOR[raw] = proc;
-const PROC_NAME = { workstation: '💻 Dev Workstation (hold E)', meeting: '🗣️ Meeting Room', server: '🖥️ Server Rack' };
+const procName = (proc) => ({ workstation: `💻 Dev Workstation (${keyHint('work')})`, meeting: '🗣️ Meeting Room', server: '🖥️ Server Rack' })[proc];
 
 // ---------------------------------------------------------------------------
 class Item {
@@ -310,12 +311,19 @@ export class Game {
     if (input.down('ArrowRight')) this.yaw -= TURN_SPEED * dt;
     p.rotation.y = this.yaw;
 
-    // movement, relative to where you're looking
-    let fwd = 0, side = 0;
-    if (input.down('KeyW') || input.down('ArrowUp')) fwd += 1;
-    if (input.down('KeyS') || input.down('ArrowDown')) fwd -= 1;
-    if (input.down('KeyD')) side += 1;
-    if (input.down('KeyA')) side -= 1;
+    // movement, relative to where you're looking: touch joystick (analog) or keys
+    let fwd = 0, side = 0, throttle = 1;
+    const stick = input.move?.();
+    if (stick) {
+      side = stick.x;
+      fwd = -stick.y;
+      throttle = Math.max(0.35, Math.min(1, Math.hypot(stick.x, stick.y)));
+    } else {
+      if (input.down('KeyW') || input.down('ArrowUp')) fwd += 1;
+      if (input.down('KeyS') || input.down('ArrowDown')) fwd -= 1;
+      if (input.down('KeyD')) side += 1;
+      if (input.down('KeyA')) side -= 1;
+    }
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let mx = fx * fwd - fz * side, mz = fz * fwd + fx * side;
     const len = Math.hypot(mx, mz);
@@ -329,7 +337,7 @@ export class Game {
       sfx.dash();
     }
 
-    const speed = TUNING.playerSpeed * (this.slowT > 0 ? 0.5 : 1);
+    const speed = TUNING.playerSpeed * throttle * (this.slowT > 0 ? 0.5 : 1);
     let vx = mx * speed, vz = mz * speed;
     if (this.dashT > 0) {
       this.dashT -= dt;
@@ -509,7 +517,7 @@ export class Game {
   addToFolder(folder, type, where) {
     if (!this.folderable(type)) {
       const d = ITEMS[type];
-      if (d.raw) this.ui.float(where, `Not ready! Take it to ${PROC_NAME[STATION_FOR[type]]}`, 'bad');
+      if (d.raw) this.ui.float(where, `Not ready! Take it to ${procName(STATION_FOR[type])}`, 'bad');
       else if (d.ruined) this.ui.float(where, 'That\'s scope creep. Shred it.', 'bad');
       else this.ui.float(where, 'That doesn\'t go in a folder.', 'bad');
       sfx.wrong();
@@ -549,7 +557,7 @@ export class Game {
       return;
     }
     if (st.fire) {
-      this.ui.float(st.slot, 'It\'s ON FIRE! Use the 🧯 Playbook (hold E)', 'bad');
+      this.ui.float(st.slot, `It's ON FIRE! Use the 🧯 Playbook (${keyHint('work')})`, 'bad');
       sfx.wrong();
       return;
     }
@@ -685,6 +693,39 @@ export class Game {
     }
   }
 
+  // What the touch buttons should offer right now (display only; mirrors the
+  // rules in interact() and work())
+  touchContext() {
+    const st = this.target, held = this.held;
+    let icon = null, label = '';
+    if (st && !st.takenBy) {
+      const folderish = held && st.item && (held.type === 'folder' || st.item.type === 'folder');
+      if (st.fire) {
+        if (!held && st.item?.type === 'playbook') [icon, label] = ['✋', 'Grab'];
+      } else if (st.kind === 'dispenser') {
+        if (!held) [icon, label] = ['✋', 'Grab'];
+        else if (held.type === 'folder' && this.folderable(st.dispense.item)) [icon, label] = ['📥', 'Add'];
+      } else if (st.kind === 'trash') {
+        if (held) [icon, label] = ['🗑️', 'Shred'];
+      } else if (st.kind === 'deliver') {
+        if (held?.type === 'folder') [icon, label] = ['📁', 'Deliver'];
+      } else if (!held && st.item) [icon, label] = ['✋', 'Grab'];
+      else if (held && !st.item) [icon, label] = ['📥', 'Place'];
+      else if (folderish) [icon, label] = ['📥', 'Add'];
+    }
+    const workable = st && !st.takenBy && (st.fire
+      ? held?.type === 'playbook'
+      : st.kind === 'workstation' && st.item && PROCESS.workstation[st.item.type]);
+    return {
+      icon: icon ?? '✋',
+      label: icon ? label : held ? 'Place' : 'Grab',
+      can: !!icon,
+      canWork: !!workable,
+      workProgress: workable ? clamp(st.fire ? st.extT / TUNING.extinguishTime : st.progress, 0, 1) : 0,
+      dashCooldown: clamp(this.dashCd / TUNING.dashCooldown, 0, 1),
+    };
+  }
+
   npcSay(st, text) {
     if (!st.npc) return;
     st.npc.userData.talkT = 0.5;
@@ -700,9 +741,9 @@ export class Game {
       hint = h.contents.length
         ? `Contains ${h.contents.map((t) => ITEMS[t].emoji).join(' ')} — add more or deliver to 🏛️ Exec Boardroom`
         : 'Fill it with finished deliverables, then deliver to 🏛️ Exec Boardroom';
-    } else if (d.raw) hint = `Not ready yet → take to ${PROC_NAME[STATION_FOR[h.type]]}`;
+    } else if (d.raw) hint = `Not ready yet → take to ${procName(STATION_FOR[h.type])}`;
     else if (d.ruined) hint = 'Ruined by endless meetings. Toss it in the 🗑️ Shredder';
-    else if (d.tool) hint = 'Face a 🔥 fire and hold E to resolve the incident';
+    else if (d.tool) hint = `Face a 🔥 fire and ${keyHint('work')} to resolve the incident`;
     else hint = 'Done! Put it in a 📁 Project Folder';
     return { emoji: d.emoji, name: d.name, hint, contents: h.contents };
   }
@@ -769,7 +810,7 @@ export class Game {
       st.item = null;
       st.done = false;
       this.setFire(st, true);
-      this.ui.banner('🔥 PRODUCTION INCIDENT!', 'You left infra on the rack too long. Grab the 🧯 Playbook and hold E!', 'bad');
+      this.ui.banner('🔥 PRODUCTION INCIDENT!', `You left infra on the rack too long. Grab the 🧯 Playbook and ${keyHint('work')}!`, 'bad');
       sfx.alarm();
     } else {
       st.item.setType(st.def.ruin);
@@ -916,7 +957,7 @@ export class Game {
         const st = pick(options);
         if (st.item && st.item.type !== 'playbook') { st.item.dispose(); st.item = null; }
         this.setFire(st, true);
-        this.ui.banner('🔥 PRODUCTION INCIDENT!', 'Someone deployed on a Friday. Grab the 🧯 Playbook and hold E on the fire!', 'bad');
+        this.ui.banner('🔥 PRODUCTION INCIDENT!', `Someone deployed on a Friday. Grab the 🧯 Playbook and ${keyHint('work')} on the fire!`, 'bad');
         sfx.alarm();
         break;
       }

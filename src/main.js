@@ -7,10 +7,14 @@ import { Game } from './game.js';
 import { UI } from './ui.js';
 import { sfx } from './audio.js';
 import { MenuHeroes } from './menuHeroes.js';
+import { device } from './device.js';
+import { TouchControls } from './touch.js';
 
 // ---------------------------------------------------------------- scene --
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// phones: fewer pixels and a smaller shadow map keep it smooth and cool
+const mobile = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // soft PCF was removed; blur comes from shadow.radius
 // Neutral keeps base colours true (ACES washes them out and darkens them)
@@ -25,7 +29,7 @@ scene.fog = new THREE.Fog(0xb4bac4, 140, 700);
 const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 3000);
 camera.rotation.order = 'YXZ';
 
-const world = buildWorld(scene);
+const world = buildWorld(scene, { shadowSize: mobile ? 1024 : 2048 });
 const city = buildCity(scene, MAP[0].length, MAP.length);
 const ui = new UI(camera);
 const game = new Game({ scene, world, ui, camera });
@@ -46,7 +50,7 @@ resize();
 const canvas = renderer.domElement;
 const locked = () => document.pointerLockElement === canvas;
 const lockPointer = () => {
-  if (!locked()) canvas.requestPointerLock?.()?.catch?.(() => {});
+  if (!locked() && !device.touch) canvas.requestPointerLock?.()?.catch?.(() => {});
 };
 const unlockPointer = () => {
   if (locked()) document.exitPointerLock();
@@ -80,12 +84,38 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => down.delete(e.code));
 window.addEventListener('blur', () => down.clear());
-const input = { down: (c) => down.has(c), pressed: (c) => pressed.has(c) };
+
+const touch = new TouchControls({
+  pressed,
+  onLook: (dx, dy) => game.look(dx, dy),
+  onPause: () => setPaused(true),
+  onSkip: () => game.skipIntro(),
+});
+const input = {
+  down: (c) => down.has(c) || touch.down.has(c),
+  pressed: (c) => pressed.has(c),
+  move: () => touch.move,
+};
+
+// phone things: pause when the app goes to the background, and stop iOS
+// pinch-zooming the page
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) setPaused(true);
+});
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+const portrait = matchMedia('(orientation: portrait)');
+const goFullscreen = () => {
+  if (!device.touch || document.fullscreenElement) return;
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })
+    .then(() => screen.orientation?.lock?.('landscape'))
+    .catch(() => {});
+};
 
 // ------------------------------------------------------------- screens --
 const $ = (s) => document.querySelector(s);
 function startGame() {
   sfx.unlock();
+  goFullscreen();
   ui.clearWorldText();
   ui.show('#menu', false);
   ui.show('#gameover', false);
@@ -115,7 +145,16 @@ function toggleGuide() {
 
 $('#btn-start').onclick = startGame;
 $('#btn-restart').onclick = startGame;
-$('#btn-resume').onclick = () => setPaused(false);
+$('#btn-resume').onclick = () => {
+  goFullscreen();
+  setPaused(false);
+};
+function toggleMute() {
+  sfx.toggleMute();
+  $('#mute').textContent = sfx.muted ? '🔇' : '🔊';
+  $('#btn-mute').textContent = sfx.muted ? '🔇 Sound off' : '🔊 Sound on';
+}
+$('#btn-mute').onclick = toggleMute;
 $('#btn-quit').onclick = () => {
   game.state = 'menu';
   unlockPointer();
@@ -138,14 +177,13 @@ function frame() {
     if (!$('#guide').classList.contains('hidden')) toggleGuide();
     else setPaused(game.state === 'playing');
   }
-  if (pressed.has('KeyM')) {
-    sfx.toggleMute();
-    $('#mute').textContent = sfx.muted ? '🔇' : '🔊';
-  }
+  if (pressed.has('KeyM')) toggleMute();
+  if (device.touch && portrait.matches) setPaused(true);
   if (pressed.has('Enter') && (game.state === 'menu' || game.state === 'over')) startGame();
   else if (game.state === 'intro' && (pressed.has('Enter') || pressed.has('Space'))) game.skipIntro();
 
   city.update(performance.now() / 1000);
+  touch.update(game, device.touch && (game.state === 'playing' || game.state === 'intro'));
   game.update(dt, input);
   if (game.state !== 'menu') ui.render(game, game.state === 'playing' ? dt : 0);
   if (game.state === 'over') unlockPointer();

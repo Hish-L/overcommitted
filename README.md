@@ -24,6 +24,20 @@ npm run build      # static build in dist/ (host it anywhere)
 | Tab | Field Guide (shows how every deliverable is made) |
 | P / Esc | Pause (Esc also releases the mouse) · M mute |
 
+### On a phone or tablet
+
+Play in landscape. Run `npm run dev -- --host` and open the Network URL on your phone. For a fullscreen
+app, use "Add to Home Screen".
+
+| Touch | Action |
+| --- | --- |
+| Left side: drag | Move. The joystick appears under your thumb and hides when you let go |
+| Right side: drag | Look around |
+| ✋ / 📥 / 📁 button | Grab / place / deliver. The icon shows what will happen |
+| 🛠️ button (hold) | Work. Only shows up at a Dev Workstation or a fire you can fight, with a progress ring |
+| 💨 button | Dash (the sweep shows the cooldown) |
+| ⏸ | Pause, Field Guide, sound |
+
 1. Initiative tickets show up at the top. Each one lists the deliverables it needs.
 2. Get raw inputs from people (AI Vendor, Red Team, SOC, Architect, GRC, IT Helpdesk, Printer, Coffee).
 3. Process them. **Dev Workstations** need you to hold E. **Meeting Room / Legal / Finance / Server Racks** run on their own.
@@ -54,6 +68,7 @@ Everything that makes it funny lives in `src/data.js`:
 ## Code layout
 
 - `src/main.js`: renderer, camera auto-framing, input, game loop
+- `src/touch.js` + `src/device.js`: on-screen touch controls, touch/keyboard detection and hint wording
 - `src/game.js`: game rules (player, carrying, stations, orders, chaos, scoring)
 - `src/world.js`: builds the office from the map
 - `src/models.js`: low-poly meshes built from primitives (no asset files)

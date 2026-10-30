@@ -7,7 +7,7 @@ import { GROUND } from './city.js';
 const FLOOR = new Set(['.', '@']);
 const DESK_SCALE = 1.05; // cubicle desks are drawn 5% larger than a tile
 
-export function buildWorld(scene) {
+export function buildWorld(scene, { shadowSize = 2048 } = {}) {
   const H = BASE_MAP.length;
   const W = BASE_MAP[0].length;
   BASE_MAP.forEach((row, i) => {
@@ -46,7 +46,7 @@ export function buildWorld(scene) {
   const sun = new THREE.DirectionalLight(0xffe4b8, 2.7);
   sun.position.set(7, 13, 9);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
   Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 10, bottom: -10, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.radius = 4;

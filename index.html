@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b2130" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Overcommitted" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
     <title>OVERCOMMITTED — A Cyber Division Simulator</title>
   </head>
@@ -36,6 +42,21 @@
         <span id="mute" title="M to mute">🔊</span>
       </div>
     </div>
+
+    <!-- ======================= TOUCH (phones/tablets) =================== -->
+    <div id="touch">
+      <div id="th-move" class="thint"><i></i>Drag to move</div>
+      <div id="th-look" class="thint">Drag to look</div>
+      <div id="stick"><div id="stick-knob"></div></div>
+      <button id="tb-pause" aria-label="Pause">⏸</button>
+      <div id="tbtns">
+        <button id="tb-main" class="tbtn" aria-label="Grab or place"><span class="ti">✋</span><span class="tl">Grab</span></button>
+        <button id="tb-work" class="tbtn" aria-label="Hold to work"><span class="ti">🛠️</span><span class="tl">Hold</span></button>
+        <button id="tb-dash" class="tbtn" aria-label="Dash"><span class="ti">💨</span></button>
+      </div>
+    </div>
+    <div id="rotate"><div class="r-icon">📱</div><p>Rotate your phone to landscape</p></div>
+
     <div id="banner"></div>
     <div id="title-card"></div>
 
@@ -59,7 +80,7 @@
       <div class="card wide">
         <h2>📖 Cyber Division Field Guide</h2>
         <div class="guide-content"></div>
-        <div class="buttons"><button id="btn-guide-close" class="primary">Got it (Tab)</button></div>
+        <div class="buttons"><button id="btn-guide-close" class="primary">Got it<span class="kbd-only"> (Tab)</span></button></div>
       </div>
     </div>
 
@@ -70,6 +91,7 @@
         <div class="buttons">
           <button id="btn-resume" class="primary">Back to work</button>
           <button class="btn-guide">📖 Field Guide</button>
+          <button id="btn-mute" class="touch-only">🔊 Sound on</button>
           <button id="btn-quit">Quit to menu</button>
         </div>
       </div>

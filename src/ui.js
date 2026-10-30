@@ -1,6 +1,7 @@
 // DOM-based HUD: initiative tickets, meters, toasts, speech bubbles, menus.
 import * as THREE from 'three';
 import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS } from './data.js';
+import { device, keyHint, onDeviceChange } from './device.js';
 
 const $ = (sel) => document.querySelector(sel);
 const CONTROLS_FULL_FOR = 20; // seconds of play before the controls bar shrinks
@@ -19,6 +20,7 @@ export class UI {
     this.tmp = new THREE.Vector3();
     this.lastHeldKey = '';
     this.buildGuide();
+    onDeviceChange(() => this.buildGuide());
   }
 
   // ------------------------------------------------------------------ HUD --
@@ -74,12 +76,12 @@ export class UI {
   }
 
   setHeld(info) {
-    const key = info ? info.emoji + info.hint : '';
+    const key = (info ? info.emoji + info.hint : '') + device.touch;
     if (key === this.lastHeldKey) return;
     this.lastHeldKey = key;
     const el = $('#held');
     if (!info) {
-      el.innerHTML = `<span class="h-empty">Hands free — grab something from a person or desk (Space)</span>`;
+      el.innerHTML = `<span class="h-empty">Hands free — grab something from a person or desk${device.touch ? '' : ` (${keyHint('grab')})`}</span>`;
       return;
     }
     el.innerHTML = `<span class="h-emoji">${info.emoji}</span><div><div class="h-name">${info.name}</div><div class="h-hint">${info.hint}</div></div>`;
@@ -211,7 +213,7 @@ export class UI {
   buildGuide() {
     const where = {};
     for (const [k, d] of Object.entries(STATIONS)) if (d.kind === 'dispenser') where[d.item] = d.label;
-    const procLabel = { workstation: '💻 Dev Workstation <i>(hold E)</i>', meeting: '🗣️ Meeting Room <i>(auto — don\'t let it run long!)</i>', server: '🖥️ Server Rack <i>(auto — grab it before it catches fire!)</i>' };
+    const procLabel = { workstation: `💻 Dev Workstation <i>(${keyHint('work')})</i>`, meeting: '🗣️ Meeting Room <i>(auto — don\'t let it run long!)</i>', server: '🖥️ Server Rack <i>(auto — grab it before it catches fire!)</i>' };
     const rows = [];
     for (const [proc, map] of Object.entries(PROCESS)) {
       for (const [raw, out] of Object.entries(map)) {
