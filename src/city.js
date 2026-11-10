@@ -353,6 +353,41 @@ function crownSydney(scene, x, z) {
   addBuilding(scene, { x, z, w: 26, d: 22, h: 10, mats: lambert({ color: 0xcfd6da }), roofKit: false });
 }
 
+function aonTower(scene) {
+  // Maritime Trade Towers, 201-207 Kent St (Peddle Thorp, 1988): Aon Tower is
+  // 128 m / 35 floors of dark tinted glass on all four sides, with the 24-floor
+  // 207 Kent St beside it and a 5-storey wing on its north. They stand north of
+  // us; nudged west of the true line so the whole footprint stays at z < -2,
+  // clear of every sightline from our floor to the Harbour Bridge (z > 0 here).
+  const x = 78, z = -13, w = 22, h = 85;
+  const tex = curtainWall({ glass: '#2f4250', mullion: '#8d989f', spandrel: '#22303a', spandrelH: 0.25, vary: 0.2 });
+  tex.repeat.set(1 / 1.5, 1 / 2.4);
+  const glass = lambert({ map: tex });
+  const mats = [glass, glass, roofMat, roofMat, glass, glass];
+  addBuilding(scene, { x, z, w, d: w, h, mats, roofKit: false });
+  addBuilding(scene, { x: x - 23, z: z + 1, w: 16, d: 16, h: 58, mats }); // 207 Kent St
+  addBuilding(scene, { x: x + 16, z, w: 10, d: 18, h: 12, mats, roofKit: false }); // north wing
+  // plant-room crown carrying the red Aon logo, facing us (south) and Kent St (east)
+  const crownH = 5, cw = w - 3;
+  const crown = new THREE.Mesh(new THREE.BoxGeometry(cw, crownH, cw), lambert({ color: 0xe4e6e6 }));
+  crown.position.set(x, GROUND + h + crownH / 2, z);
+  scene.add(crown);
+  const signTex = canvasTex(256, 128, (g, sw, sh) => {
+    g.fillStyle = '#eb0017'; // Aon red
+    g.font = 'bold 120px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('AON', sw / 2, sh / 2 + 8, sw - 16);
+  }, false);
+  const signMat = lambert({ map: signTex, transparent: true, alphaTest: 0.1 });
+  for (const [dx, dz, ry] of [[-1, 0, -Math.PI / 2], [0, 1, 0]]) {
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), signMat);
+    sign.position.set(x + dx * (cw / 2 + 0.05), GROUND + h + crownH / 2, z + dz * (cw / 2 + 0.05));
+    sign.rotation.y = ry;
+    scene.add(sign);
+  }
+}
+
 function harbourBridge(scene) {
   // Distant landmark across the harbour to the north.
   const g = new THREE.Group();
@@ -575,6 +610,7 @@ export function buildCity(scene, W, H) {
   for (const [px, pz, pw, pd] of [[30, -32, 26, 10], [58, -44, 22, 10], [80, -52, 20, 10], [45, -76, 18, 10], [70, -86, 26, 8]]) {
     addBuilding(scene, { x: px, z: pz, w: pw, d: pd, h: rand(5, 9), mats: podium, roofKit: false });
   }
+  aonTower(scene);
   harbourBridge(scene);
   sydneyTower(scene, -290, 120);
 
@@ -597,6 +633,7 @@ export function buildCity(scene, W, H) {
     { x0: -15, x1: 50, z0: -14, z1: 14 },   // Westpac Place
     { x0: -28, x1: 12, z0: -66, z1: -14 }, // Amex, King Street Wharf (and the sightline to it)
     { x0: 12, x1: 130, z0: -105, z1: -22 }, // Barangaroo South
+    { x0: 44, x1: 101, z0: -26, z1: 0 },    // Aon Tower / Maritime Trade Towers
     { x0: -30, x1: 30, z0: 14, z1: 40 },    // keep the Kent St facade visible
     { x0: -305, x1: -275, z0: 105, z1: 135 }, // Sydney Tower
   ];
