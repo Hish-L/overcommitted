@@ -54,7 +54,7 @@ export class TouchControls {
       p.btn = btn;
       btn.classList.add('down');
       buzz();
-      if (btn === this.btns.main) this.pressed.add('Space');
+      if (btn === this.btns.main) { this.pressed.add('Space'); this.down.add('Space'); } // held too: town hall's one button
       else if (btn === this.btns.dash) this.pressed.add('ShiftLeft');
       else if (btn === this.btns.work) this.down.add('KeyE');
     } else if (e.clientX < innerWidth * STICK_ZONE && ![...this.ptrs.values()].some((q) => q.kind === 'stick')) {
@@ -92,6 +92,7 @@ export class TouchControls {
     if (p.kind === 'btn') {
       p.btn.classList.remove('down');
       if (p.btn === this.btns.work) this.down.delete('KeyE');
+      if (p.btn === this.btns.main) this.down.delete('Space');
     } else if (p.kind === 'stick') {
       this.move = null;
       this.stick.classList.remove('on');

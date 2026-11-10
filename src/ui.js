@@ -1,7 +1,8 @@
 // DOM-based HUD: initiative tickets, meters, toasts, speech bubbles, menus.
 import * as THREE from 'three';
-import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS } from './data.js';
+import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS, TOWNHALL_TICKETS } from './data.js';
 import { device, keyHint, onDeviceChange } from './device.js';
+import { labels } from './models.js';
 
 const $ = (sel) => document.querySelector(sel);
 const CONTROLS_FULL_FOR = 20; // seconds of play before the controls bar shrinks
@@ -33,7 +34,7 @@ export class UI {
       let el = this.orderEls.get(o.id);
       if (!el) {
         el = document.createElement('div');
-        el.className = 'ticket enter';
+        el.className = `ticket enter${o.from ? ' achievement' : ''}`;
         el.innerHTML = `
           <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span></div>
           <div class="t-name">${o.recipe.name}</div>
@@ -67,8 +68,17 @@ export class UI {
     $('#conf-val').textContent = Math.round(conf);
     $('#score').textContent = `$${game.score}M`;
     const bl = game.orders.length;
-    $('#backlog').textContent = `${bl} / ${TUNING.maxBacklog}`;
-    $('#backlog-box').classList.toggle('danger', bl >= TUNING.maxBacklog - 2);
+    const counting = game.townhall && !game.overload; // town hall: achievements so far, until the finale
+    $('#backlog-box label').textContent = counting ? 'Achievements' : 'Backlog';
+    $('#backlog').textContent = counting ? `${game.achieved.length} / ${TOWNHALL_TICKETS.length}` : `${bl} / ${TUNING.maxBacklog}`;
+    $('#backlog-box').classList.toggle('danger', !counting && bl >= TUNING.maxBacklog - 2);
+    const bar = game.state === 'playing' && game.hudBar;
+    $('#work-bar').classList.toggle('hidden', !bar);
+    if (bar) {
+      $('#work-bar div').style.width = `${Math.min(1, Math.max(0, bar.p)) * 100}%`;
+      $('#work-bar div').style.background = `#${bar.color.toString(16).padStart(6, '0')}`;
+    }
+    document.body.classList.toggle('townhall', game.mode === 'townhall');
     // full controls for the first stretch, then just the essentials
     $('#controls').classList.toggle('mini', game.time > CONTROLS_FULL_FOR);
 
@@ -76,10 +86,11 @@ export class UI {
   }
 
   setHeld(info) {
-    const key = (info ? info.emoji + info.hint : '') + device.touch;
+    const key = (info ? info.emoji + info.hint : '') + device.touch + device.pad;
     if (key === this.lastHeldKey) return;
     this.lastHeldKey = key;
     const el = $('#held');
+    el.classList.toggle('fire', info?.emoji === '🔥');
     if (!info) {
       el.innerHTML = `<span class="h-empty">Hands free — grab something from a person or desk${device.touch ? '' : ` (${keyHint('grab')})`}</span>`;
       return;
@@ -111,9 +122,10 @@ export class UI {
     this.bannerT = setTimeout(() => (el.className = ''), 3800);
   }
 
-  titleCard(text, ms = 2000) {
+  titleCard(text, ms = 2000, big = false) {
     const el = $('#title-card');
     el.textContent = text;
+    el.classList.toggle('big', big);
     el.classList.add('show');
     clearTimeout(this.titleT);
     this.titleT = setTimeout(() => el.classList.remove('show'), ms);
@@ -164,6 +176,33 @@ export class UI {
     }
   }
 
+  // station signs and name tags (models.js labelSprite), sized like a sprite
+  // of the same world height. Call after the scene renders so they don't lag.
+  renderLabels() {
+    const h = window.innerHeight, w = window.innerWidth, cam = this.camera;
+    for (const o of labels) {
+      const d = o.userData;
+      if (!d.el) {
+        d.el = document.createElement('div');
+        d.el.className = 'label';
+        d.el.textContent = d.text;
+        d.el.style.background = d.bg;
+        d.el.style.color = d.fg;
+        $('#world-ui').prepend(d.el); // under bubbles and floats
+      }
+      let vis = true;
+      for (let p = o; p && vis; p = p.parent) vis = p.visible;
+      const depth = -o.getWorldPosition(this.tmp).applyMatrix4(cam.matrixWorldInverse).z;
+      vis &&= depth > cam.near;
+      d.el.style.display = vis ? '' : 'none';
+      if (!vis) continue;
+      const px = (d.height * cam.projectionMatrix.elements[5] * h) / (2 * depth); // on-screen height
+      this.tmp.applyMatrix4(cam.projectionMatrix);
+      d.el.style.fontSize = `${px * 0.625}px`;
+      d.el.style.transform = `translate(-50%, -50%) translate(${(this.tmp.x * 0.5 + 0.5) * w}px, ${(-this.tmp.y * 0.5 + 0.5) * h}px)`;
+    }
+  }
+
   clearWorldText() {
     for (const b of this.bubbles) b.el.remove();
     this.bubbles = [];
@@ -190,7 +229,9 @@ export class UI {
     $('#go-reason').textContent = reason.text;
     $('#go-review-title').textContent = review.title;
     $('#go-review-text').textContent = review.text;
-    $('#go-stats').innerHTML = [
+    const th = game.mode === 'townhall';
+    $('#gameover').classList.toggle('townhall', th);
+    $('#go-stats').innerHTML = th ? game.achieved.map((n) => `<div><span>🏆 ${n}</span><b>✅</b></div>`).join('') : [
       ['Initiatives requested', s.requested],
       ['Initiatives delivered', `${s.delivered} (${pct}%)`],
       ['Delivered late', s.lateDelivered],

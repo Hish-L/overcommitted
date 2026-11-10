@@ -7,7 +7,6 @@ export class MenuHeroes {
   constructor(canvas) {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.scene = new THREE.Scene();
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445066, 1.6));

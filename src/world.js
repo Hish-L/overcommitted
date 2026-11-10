@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { MAP as BASE_MAP, STATIONS, ITEMS, DESK_STATIONS } from './data.js';
 import * as M from './models.js';
-import { GROUND } from './city.js';
+import { GROUND, facadeBox, westpacGlass } from './city.js';
 
 const FLOOR = new Set(['.', '@']);
 const DESK_SCALE = 1.05; // cubicle desks are drawn 5% larger than a tile
@@ -221,6 +221,13 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
     const zs0 = zf - 0.1, zs1 = zb + 0.15, Ds = zs1 - zs0, zsc = (zs0 + zs1) / 2;
     for (const sx of [-1, 1]) add(scene, new THREE.Mesh(new THREE.BoxGeometry(0.03, Hs, Ds), glass), x + sx * 0.95, yc, zsc);
     add(scene, new THREE.Mesh(new THREE.BoxGeometry(1.9, Hs, 0.03), glass), x, yc, zs1);
+    // one-way outer skin in the tower's own curtain wall: front faces only, so
+    // from the street the shaft reads as part of the building, and from inside
+    // (back faces, culled) you still look out through the glass above.
+    // No face on the building side, or it would wall off the lift door.
+    const skin = westpacGlass(), none = new THREE.Material();
+    none.visible = false;
+    add(scene, new THREE.Mesh(facadeBox(2.0, Hs, Ds + 0.05), [skin, skin, none, none, skin, none]), x, yc, zsc + 0.025);
     const mullion = 0xc9d3d8;
     for (const [px, pz] of [[-0.95, zs0], [0.95, zs0], [-0.95, zs1], [0.95, zs1]]) {
       add(scene, M.box(0.07, Hs, 0.07, mullion), x + px, yc, pz);
@@ -343,6 +350,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
     if (def.shirt != null || def.regular) {
       npc = def.regular === 'goatee' ? M.makeGoateeGuy()
         : def.regular === 'hacker' ? M.makeHacker()
+        : def.regular === 'neat' ? M.makeNeatGuy()
         : M.makePerson({ shirt: def.shirt });
       if (onDesk) {
         // pulled up to the desk edge facing their monitor, legs under the desk
