@@ -51,54 +51,14 @@ export function emojiSprite(emoji, size = 0.5) {
   return s;
 }
 
-export function labelTexture(text, bg = '#1d2533', fg = '#ffffff') {
-  const c = document.createElement('canvas');
-  const g = c.getContext('2d');
-  const font = `bold 40px "Segoe UI", Helvetica, Arial, ${EMOJI_FONT}`;
-  g.font = font;
-  const w = Math.ceil(g.measureText(text).width) + 40;
-  c.width = w;
-  c.height = 64;
-  g.font = font;
-  g.fillStyle = bg;
-  roundRect(g, 2, 2, w - 4, 60, 18);
-  g.fill();
-  g.fillStyle = fg;
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText(text, w / 2, 34);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.userData = { aspect: w / 64 };
-  return t;
-}
-
-export function labelSprite(text, height = 0.32, bg, fg) {
-  const tex = labelTexture(text, bg, fg);
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
-  s.scale.set(height * tex.userData.aspect, height, 1);
-  s.renderOrder = 10;
-  s.userData.height = height;
-  return s;
-}
-
-export function setLabel(sprite, text, bg, fg) {
-  const old = sprite.material.map;
-  const tex = labelTexture(text, bg, fg);
-  sprite.material.map = tex;
-  sprite.material.needsUpdate = true;
-  sprite.scale.set(sprite.userData.height * tex.userData.aspect, sprite.userData.height, 1);
-  old.dispose();
-}
-
-function roundRect(g, x, y, w, h, r) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
+// World-anchored text labels. These are just anchors: ui.js draws them as DOM
+// text so they stay sharp while the 3D canvas renders at 1x.
+export const labels = [];
+export function labelSprite(text, height = 0.32, bg = '#1d2533', fg = '#ffffff') {
+  const o = new THREE.Object3D();
+  o.userData = { text, height, bg, fg };
+  labels.push(o);
+  return o;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,13 +149,8 @@ export function makeExec() {
   return addGoatee(makePerson({ shirt: 0xf7f7f5, pants: 0x151515, tie: true, skin: GOATEE_SKIN, bald: true, scale: 1.35 }));
 }
 
-// The regular by the lift: bald, goatee, glasses, white business shirt,
-// jeans and black/red Jordans.
-export function makeGoateeGuy() {
-  const p = addGoatee(makePerson({ shirt: 0xf7f7f5, pants: 0x3d5f8c, skin: GOATEE_SKIN, bald: true }));
-  const { body, head, legL, legR } = p.userData;
-
-  // shirt collar + buttons
+// Business-shirt collar + buttons.
+function addCollar(body) {
   for (const s of [-1, 1]) {
     const c = box(0.09, 0.05, 0.02, 0xffffff);
     c.position.set(s * 0.05, 0.84, 0.16);
@@ -207,6 +162,33 @@ export function makeGoateeGuy() {
     b.position.set(0, 0.76 - i * 0.09, 0.2);
     body.add(b);
   }
+}
+
+// A regular at the first desk block: white business shirt, black pants, brown
+// business shoes, plain black hair.
+export function makeNeatGuy() {
+  const p = makePerson({ shirt: 0xf7f7f5, pants: 0x151515, hair: 0x141414 });
+  const { body, legL, legR } = p.userData;
+  addCollar(body);
+
+  // brown leather business shoes (leg-local, so they follow seatPerson)
+  for (const leg of [legL, legR]) {
+    const upper = box(0.12, 0.07, 0.22, 0x6b4226);
+    upper.position.set(0, -0.16, 0.04);
+    const sole = box(0.125, 0.02, 0.23, 0x2a1a10);
+    sole.position.set(0, -0.2, 0.04);
+    leg.add(upper, sole);
+  }
+  return p;
+}
+
+// The regular by the lift: bald, goatee, glasses, white business shirt,
+// jeans and black/red Jordans.
+export function makeGoateeGuy() {
+  const p = addGoatee(makePerson({ shirt: 0xf7f7f5, pants: 0x3d5f8c, skin: GOATEE_SKIN, bald: true }));
+  const { body, head, legL, legR } = p.userData;
+
+  addCollar(body);
 
   // rectangular glasses: a 4-segment torus turned 45° is a square frame, stretched wide
   const frame = mat(0x111111);
@@ -939,26 +921,34 @@ export function makeArmchair() {
   return g;
 }
 
-// Mini indoor tree (think fiddle-leaf fig): big pot, slim trunk, clustered canopy.
+// Potted Christmas tree: stacked fir tiers, baubles, gold star.
 export function makeMiniTree() {
   const g = new THREE.Group();
-  const pot = cyl(0.26, 0.2, 0.42, 0xf1efe9);
+  const pot = cyl(0.26, 0.2, 0.42, 0xb3202a);
   pot.position.y = 0.21;
   g.add(pot);
-  const soil = cyl(0.24, 0.24, 0.03, 0x4a3426);
-  soil.position.y = 0.42;
-  g.add(soil);
-  const trunk = cyl(0.035, 0.05, 1.1, 0x7a5434);
-  trunk.position.y = 0.95;
+  const trunk = cyl(0.05, 0.05, 0.3, 0x7a5434);
+  trunk.position.y = 0.55;
   g.add(trunk);
-  const greens = [0x3f9b3a, 0x57b947, 0x2f7d32];
-  const blobs = [[0, 1.75, 0, 0.34], [0.2, 1.55, 0.1, 0.26], [-0.2, 1.6, -0.08, 0.27], [0.05, 1.5, -0.22, 0.24], [-0.08, 1.45, 0.2, 0.23], [0.02, 2.0, 0.03, 0.22]];
-  blobs.forEach(([x, y, z, r], i) => {
-    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), mat(greens[i % greens.length], { flatShading: true }));
-    b.position.set(x, y, z);
-    b.castShadow = true;
-    g.add(b);
+  const baubles = [0xe02b2b, 0xf2c230, 0x3d7fe0, 0xf1efe9];
+  // tiers: [base y, radius, height], overlapping so it reads as one fir
+  [[0.6, 0.55, 0.7], [1.0, 0.44, 0.6], [1.35, 0.33, 0.5], [1.65, 0.22, 0.45]].forEach(([y, r, h], t) => {
+    const tier = new THREE.Mesh(new THREE.ConeGeometry(r, h, 10), mat(t % 2 ? 0x1f6b34 : 0x2a7d3c, { flatShading: true }));
+    tier.position.y = y + h / 2;
+    tier.castShadow = true;
+    g.add(tier);
+    // baubles hanging around the skirt of each tier
+    const n = 6 - t;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + t * 0.7, c = baubles[(i + t) % baubles.length];
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), mat(c, { emissive: c, emissiveIntensity: 0.35, roughness: 0.3 }));
+      b.position.set(Math.cos(a) * r * 0.85, y + h * 0.12, Math.sin(a) * r * 0.85);
+      g.add(b);
+    }
   });
+  const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), mat(0xffd84a, { emissive: 0xffb400, emissiveIntensity: 0.8 }));
+  star.position.y = 2.17;
+  g.add(star);
   return g;
 }
 

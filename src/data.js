@@ -69,6 +69,7 @@ export const STATIONS = {
   R: { kind: 'trash',   label: 'Shredder' },
   C: { kind: 'counter', label: 'Desk' },
   Y: { kind: 'counter', label: 'Desk', regular: 'goatee' }, // the bald guy by the lift, always there
+  n: { kind: 'counter', label: 'Desk', regular: 'neat' },   // white shirt, black pants, brown shoes, always there
   h: { kind: 'counter', label: 'Desk', regular: 'hacker' }, // black-hoodie hacker on a matrix terminal, always there
   O: { kind: 'counter', label: 'Oak Table' },
 };
@@ -80,7 +81,8 @@ export const STATIONS = {
 //       g = automatic glass sliding door where the hot-deskers come in,
 //       < = armchair on the right-hand window line, facing into the room,
 //       Y = the top-right desk where the goatee guy always sits,
-//       h = a desk with a black-hoodie hacker who's always there)
+//       h = a desk with a black-hoodie hacker who's always there,
+//       n = the desk where the guy in the white shirt always sits)
 // Every aisle between desk pairs is 2 tiles wide, so people seated on both
 // sides never block it.
 // Top, right and bottom borders are floor-to-ceiling glass; the left wall holds
@@ -91,7 +93,7 @@ export const MAP = [
   '#wwwOOOOOOOOOOOOOOOww###',
   'J......................#',
   '#......................#',
-  'R..WW..WW..WW..WW..WY..<',
+  'R..Wn..WW..WW..WW..WY..<',
   'D..WW..WW..WW..WW..Wh..#',
   'D..WW..WW..WW..WW..Bh..#',
   'D..WW..WW..WW..WW..Wh..<',
@@ -119,6 +121,17 @@ export const RECIPES = [
   { name: 'AI Agentic Defense Deployment',  needs: ['llm', 'dataset', 'threatmodel', 'coffee'],  tier: 2 },
   { name: 'Autonomous AI Pentest Platform', needs: ['weapon', 'llm', 'threatmodel', 'dataset'],  tier: 2 },
   { name: 'Single Pane of Glass™',          needs: ['dataset', 'infra', 'llm', 'coffee'],        tier: 2 },
+];
+
+// ---------------------------------------------------------------------------
+// TOWN HALL DEMO: the division's real achievements, delivered in this order.
+// Add a line per achievement. `from` is who hands it over:
+//   K AI Vendor · X Pentest Team · L SOC · T Sec Architect · H IT Helpdesk
+// ---------------------------------------------------------------------------
+export const TOWNHALL_TICKETS = [
+  { name: 'Build Argus Harness',             from: 'K' },
+  { name: 'Pull 400+ CIO overrides',         from: 'L' },
+  { name: 'Deliver 400 Redback engagements', from: 'X' },
 ];
 
 export const REQUESTERS = [
@@ -176,5 +189,6 @@ export const PERFORMANCE_REVIEWS = [
 
 export const GAME_OVER_REASONS = {
   backlog:    { title: 'BACKLOG OVERFLOW', text: 'The Jira board achieved sentience and filed a ticket against you.' },
+  townhall:   { title: '🏆 WHAT A YEAR', text: 'Everything below shipped for real. Then the backlog caught up with you.' },
   confidence: { title: 'LEADERSHIP HAS LOST CONFIDENCE', text: 'You\'ve been "reorganized" into a new team called "Special Projects".' },
 };

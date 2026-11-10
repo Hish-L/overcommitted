@@ -7,14 +7,14 @@ import { Game } from './game.js';
 import { UI } from './ui.js';
 import { sfx } from './audio.js';
 import { MenuHeroes } from './menuHeroes.js';
-import { device } from './device.js';
+import { device, setPad } from './device.js';
 import { TouchControls } from './touch.js';
 
 // ---------------------------------------------------------------- scene --
-// phones: fewer pixels and a smaller shadow map keep it smooth and cool
+// The canvas renders at 1x pixel ratio (three's default) to keep devices cool;
+// all text is DOM (ui.js), so it stays sharp. Phones also get a smaller shadow map.
 const mobile = matchMedia('(pointer: coarse)').matches;
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // soft PCF was removed; blur comes from shadow.radius
 // Neutral keeps base colours true (ACES washes them out and darkens them)
@@ -91,10 +91,33 @@ const touch = new TouchControls({
   onPause: () => setPaused(true),
   onSkip: () => game.skipIntro(),
 });
+// PS5 / Xbox controller (browser Gamepad API, "standard" layout): buttons act
+// as keys, the left stick moves like the touch joystick, the right stick looks.
+const PAD_KEYS = { 0: 'Space', 1: 'ShiftLeft', 2: 'KeyE', 3: 'KeyY', 8: 'Tab', 9: 'KeyP' }; // A/✕, B/○, X/□, Y/△, Back, Start
+const pad = { down: new Set(), move: null };
+const PAD_DEAD = 0.2, PAD_LOOK = 1100; // stick deadzone; look speed in "mouse pixels" per second
+function pollPad(dt) {
+  const gp = [...(navigator.getGamepads?.() ?? [])].find((g) => g?.connected && g.mapping === 'standard');
+  pad.move = null;
+  if (!gp) return pad.down.clear();
+  let used = false;
+  for (const [i, code] of Object.entries(PAD_KEYS)) {
+    const on = !!gp.buttons[i]?.pressed;
+    if (on && !pad.down.has(code)) pressed.add(code);
+    if (on) { pad.down.add(code); used = true; } else pad.down.delete(code);
+  }
+  const [lx = 0, ly = 0, rx = 0, ry = 0] = gp.axes;
+  if (Math.hypot(lx, ly) > PAD_DEAD) { pad.move = { x: lx, y: ly }; used = true; }
+  if (Math.hypot(rx, ry) > PAD_DEAD) { game.look(rx * PAD_LOOK * dt, ry * PAD_LOOK * dt); used = true; }
+  if (used && !device.pad) {
+    device.padA = /054c|dualsense|dualshock|playstation/i.test(gp.id) ? '✕' : 'Ⓐ';
+    setPad(true);
+  }
+}
 const input = {
-  down: (c) => down.has(c) || touch.down.has(c),
+  down: (c) => down.has(c) || touch.down.has(c) || pad.down.has(c),
   pressed: (c) => pressed.has(c),
-  move: () => touch.move,
+  move: () => touch.move ?? pad.move,
 };
 
 // phone things: pause when the app goes to the background, and stop iOS
@@ -113,7 +136,9 @@ const goFullscreen = () => {
 
 // ------------------------------------------------------------- screens --
 const $ = (s) => document.querySelector(s);
-function startGame() {
+let mode = 'normal';
+function startGame(m = mode) {
+  mode = m;
   sfx.unlock();
   goFullscreen();
   ui.clearWorldText();
@@ -122,7 +147,7 @@ function startGame() {
   ui.show('#pause', false);
   ui.show('#guide', false);
   ui.show('#hud', false); // shown once the intro fly-in lands
-  game.start();
+  game.start(mode);
   lockPointer();
 }
 function setPaused(p) {
@@ -143,8 +168,9 @@ function toggleGuide() {
   else unlockPointer();
 }
 
-$('#btn-start').onclick = startGame;
-$('#btn-restart').onclick = startGame;
+$('#btn-start').onclick = () => startGame('normal');
+$('#btn-townhall').onclick = () => startGame('townhall');
+$('#btn-restart').onclick = () => startGame(); // same mode again
 $('#btn-resume').onclick = () => {
   goFullscreen();
   setPaused(false);
@@ -168,9 +194,21 @@ $('#btn-guide-close').onclick = toggleGuide;
 
 // ----------------------------------------------------------------- loop --
 const clock = new THREE.Clock();
-function frame() {
+const FRAME = 1000 / 60; // cap at 60fps: 120Hz screens would do double the work
+let last = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const elapsed = now - last;
+  if (elapsed < FRAME - 1) return;
+  last = elapsed > 2 * FRAME ? now : last + FRAME; // keep the 60Hz beat, resync after a stall
   const dt = Math.min(0.05, clock.getDelta());
 
+  pollPad(dt);
+  // controller on the menus: A/✕ = Check In (or play again), Y/△ = Town hall demo
+  if (device.pad && (game.state === 'menu' || game.state === 'over')) {
+    if (pressed.has('Space')) pressed.add('Enter');
+    if (pressed.has('KeyY') && game.state === 'menu') startGame('townhall');
+  }
   if (pressed.has('Tab')) toggleGuide();
   // (ignore the Esc that the browser already used to release the mouse)
   if ((pressed.has('Escape') && performance.now() - unlockedAt > 250) || pressed.has('KeyP')) {
@@ -179,7 +217,7 @@ function frame() {
   }
   if (pressed.has('KeyM')) toggleMute();
   if (device.touch && portrait.matches) setPaused(true);
-  if (pressed.has('Enter') && (game.state === 'menu' || game.state === 'over')) startGame();
+  if (pressed.has('Enter') && (game.state === 'menu' || game.state === 'over')) startGame(game.state === 'menu' ? 'normal' : mode);
   else if (game.state === 'intro' && (pressed.has('Enter') || pressed.has('Space'))) game.skipIntro();
 
   city.update(performance.now() / 1000);
@@ -188,6 +226,7 @@ function frame() {
   if (game.state !== 'menu') ui.render(game, game.state === 'playing' ? dt : 0);
   if (game.state === 'over') unlockPointer();
   renderer.render(scene, camera);
+  ui.renderLabels();
   if (game.state === 'menu') heroes.render(performance.now() / 1000);
   // held item on top of everything (its own scene, depth cleared)
   if (game.held && game.state !== 'menu') {
@@ -197,9 +236,8 @@ function frame() {
     renderer.autoClear = true;
   }
   pressed.clear();
-  requestAnimationFrame(frame);
 }
-frame();
+requestAnimationFrame(frame);
 
 // handy for debugging from the console
 window.__game = game;

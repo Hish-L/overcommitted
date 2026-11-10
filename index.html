@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Overcommitted" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
-    <title>OVERCOMMITTED — A Cyber Division Simulator</title>
+    <title>OVERCOMMITTED — SCA Simulator</title>
   </head>
   <body>
     <div id="app"></div>
@@ -28,16 +28,17 @@
         </div>
       </div>
       <div id="crosshair"></div>
+      <div id="work-bar" class="hidden"><div></div></div>
       <div id="toasts"></div>
       <div id="held"></div>
       <div id="status"></div>
       <div id="controls">
         <span class="full"><kbd>Mouse</kbd> look</span>
         <span class="full"><kbd>WASD</kbd> move</span>
-        <span class="full"><kbd>Space</kbd> grab / place</span>
-        <span class="full"><kbd>E</kbd> hold to work</span>
-        <span class="full"><kbd>Shift</kbd> dash</span>
-        <span><kbd>Tab</kbd> help</span>
+        <span class="full"><kbd>Space</kbd> <span class="key-grab">grab / place</span><span class="key-all">action</span></span>
+        <span class="full key-work"><kbd>E</kbd> hold to work</span>
+        <span class="full adv"><kbd>Shift</kbd> dash</span>
+        <span class="adv"><kbd>Tab</kbd> help</span>
         <span><kbd>P</kbd> pause</span>
         <span id="mute" title="M to mute">🔊</span>
       </div>
@@ -66,10 +67,11 @@
       <canvas id="menu-heroes"></canvas>
       <div class="card">
         <div class="logo">OVER<span>COMMITTED</span></div>
-        <div class="tagline">A Cyber Division Simulator 🛡️🔥</div>
+        <div class="tagline">SCA Simulator 🛡️🔥</div>
         <p class="premise">You're the only engineer. Leadership has <i>a few ideas</i>.</p>
         <div class="buttons">
           <button id="btn-start" class="primary">Check In ▶</button>
+          <button id="btn-townhall">🎤 Town hall demo</button>
           <button class="btn-guide">📖 Field Guide</button>
         </div>
       </div>

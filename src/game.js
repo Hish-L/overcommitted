@@ -1,12 +1,12 @@
 // Core game state + rules: player movement, carrying, stations, initiatives,
 // chaos events and the inevitable collapse.
 import * as THREE from 'three';
-import { ITEMS, PROCESS, RECIPES, REQUESTERS, TUNING } from './data.js';
-import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, setLabel, tickMatrix, labelSprite } from './models.js';
+import { ITEMS, PROCESS, RECIPES, REQUESTERS, STATIONS, TOWNHALL_TICKETS, TUNING } from './data.js';
+import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, tickMatrix, labelSprite } from './models.js';
 import { HotDesk } from './hotdesk.js';
 import { makeFire, animateFire } from './world.js';
 import { sfx } from './audio.js';
-import { keyHint } from './device.js';
+import { device, keyHint } from './device.js';
 
 const PLAYER_R = 0.3;
 const EYE_HEIGHT = 1.35;
@@ -19,14 +19,20 @@ const RISE = { from: 0, to: 7.5 };
 // ...then we turn to face the doors, they open, the glass door slides, and we walk out
 const TURN = { from: 7.5, to: 8 };
 const LIFT = { open: 8, glass: 8.4, walk: 8.8, end: 10.5 };
+// ...and stand there while "Level 6" fades into a big "SCA"; control comes after
+const TITLE = { level: LIFT.end, sca: LIFT.end + 1.7, end: LIFT.end + 4.2 };
 const smooth = (k) => k * k * (3 - 2 * k);
 const LOOK_SENS = 0.0025;
 const TURN_SPEED = 2.6; // rad/s for arrow-key turning
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const MAX_PITCH = 10 * Math.PI / 180; // look up/down limit
 
 const STATION_FOR = {};
 for (const [proc, map] of Object.entries(PROCESS)) for (const raw of Object.keys(map)) STATION_FOR[raw] = proc;
+// town hall demo: on a keyboard, Space does everything
+const holdHint = () => (device.pad ? `Hold ${device.padA}` : device.touch ? 'Hold the button' : 'Hold SPACE');
+const pressHint = () => (device.pad ? `Press ${device.padA}` : device.touch ? 'Tap the button' : 'Press SPACE');
 const procName = (proc) => ({ workstation: `💻 Dev Workstation (${keyHint('work')})`, meeting: '🗣️ Meeting Room', server: '🖥️ Server Rack' })[proc];
 
 // ---------------------------------------------------------------------------
@@ -120,6 +126,14 @@ export class Game {
     scene.add(hl);
     this.highlight = hl;
 
+    // town hall demo: a tall green beam over wherever the player should go next
+    this.beacon = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.3, 4, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x44ff88, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide })
+    );
+    this.beacon.visible = false;
+    scene.add(this.beacon);
+
     this.hotdesk = new HotDesk(this);
     this.state = 'menu';
     this.reset();
@@ -144,7 +158,7 @@ export class Game {
     p.position.set(this.world.spawn.x, 0, this.world.spawn.z);
     p.rotation.y = Math.PI;
     this.yaw = Math.PI;
-    this.pitch = -0.25;
+    this.pitch = -MAX_PITCH;
     this.vel = new THREE.Vector2();
     this.dashT = 0;
     this.dashCd = 0;
@@ -160,7 +174,12 @@ export class Game {
     this.spawnInterval = TUNING.spawnStart;
     this.confidence = TUNING.startConfidence;
     this.score = 0;
-    this.chaosIn = TUNING.chaosStart;
+    // town hall demo: simple "grab and deliver" rules until every achievement in
+    // TOWNHALL_TICKETS is delivered; after that the normal rules take over
+    this.townhall = this.mode === 'townhall';
+    this.achieved = [];
+    this.overload = false; // town hall finale: same simple rules, requests pile up until the backlog bursts
+    this.chaosIn = this.townhall ? 20 : TUNING.chaosStart;
     this.slowT = 0;
     this.shake = 0;
     this.lastRecipe = null;
@@ -168,7 +187,8 @@ export class Game {
     this.stats = { delivered: 0, requested: 0, overdue: 0, wrong: 0, fires: 0, scopeCreep: 0, coffee: 0, meetings: 0, lateDelivered: 0 };
   }
 
-  start() {
+  start(mode = 'normal') {
+    this.mode = mode;
     this.reset();
     // "Check In": the lift sets off up the glass shaft straight away and the
     // camera glides from the menu shot into the player's eyes inside it
@@ -202,7 +222,7 @@ export class Game {
   }
 
   skipIntro() {
-    if (this.state === 'intro') this.introT = LIFT.end;
+    if (this.state === 'intro') this.introT = TITLE.end;
   }
 
   // the car rides up during the fly-in and on in first person (free look); then
@@ -225,7 +245,7 @@ export class Game {
       const k = smooth(Math.min(1, (t - TURN.from) / (TURN.to - TURN.from)));
       const f = this.turnFrom, dy = Math.atan2(Math.sin(Math.PI - f.yaw), Math.cos(Math.PI - f.yaw));
       this.yaw = f.yaw + dy * k;
-      this.pitch = f.pitch + (-0.25 - f.pitch) * k;
+      this.pitch = f.pitch + (-MAX_PITCH - f.pitch) * k;
     }
     this.player.rotation.y = this.yaw;
     if (t < INTRO_TIME) return;
@@ -240,7 +260,9 @@ export class Game {
       this.walkT += dt * 9;
       this.wobble = k < 1 ? 1 : 0;
     }
-    if (t >= LIFT.end) this.finishIntro();
+    if (prev < TITLE.level && t >= TITLE.level && t < TITLE.sca) this.ui.titleCard('Level 6', 1300);
+    if (prev < TITLE.sca && t >= TITLE.sca && t < TITLE.end) this.ui.titleCard('SCA', 2000, true);
+    if (t >= TITLE.end) this.finishIntro();
   }
 
   finishIntro() {
@@ -250,19 +272,18 @@ export class Game {
     this.player.position.set(this.world.spawn.x, 0, this.world.spawn.z);
     this.world.elevator.car.position.y = 0;
     this.yaw = Math.PI;
-    this.pitch = -0.25;
+    this.pitch = -MAX_PITCH;
     this.player.rotation.y = this.yaw;
     this.wobble = 0;
     this.ui.show('#hud', true);
-    this.ui.titleCard('SCA Division');
-    this.ui.toast('Welcome to the Cyber Division! Leadership has a few small asks...', 'info');
+    if (!this.townhall) this.ui.toast('Welcome to the Cyber Division! Leadership has a few small asks...', 'info');
   }
 
   // Mouse look (called from main.js with pointer-lock movement deltas)
   look(dx, dy) {
     if (this.state !== 'playing' && !this.riding()) return;
     this.yaw -= dx * LOOK_SENS;
-    this.pitch = clamp(this.pitch - dy * LOOK_SENS, -1.35, 1.1);
+    this.pitch = clamp(this.pitch - dy * LOOK_SENS, -MAX_PITCH, MAX_PITCH);
   }
 
   // A point just in front of the player's eyes, for floating text
@@ -280,11 +301,14 @@ export class Game {
 
     this.updatePlayer(dt, input);
     this.updateStations(dt);
-    this.hotdesk.update(dt);
+    if (!this.townhall) this.hotdesk.update(dt);
     this.updateOrders(dt);
     this.updateChaos(dt);
+    this.updateBeacon();
 
-    if (this.confidence <= 0) this.endGame('confidence');
+    // town hall: fires and late tickets hurt, but can't end it before the last achievement
+    if (this.townhall) this.confidence = Math.max(25, this.confidence);
+    else if (this.confidence <= 0) this.endGame('confidence');
   }
 
   // office clock, in minutes after midnight
@@ -364,7 +388,8 @@ export class Game {
     if (input.pressed('Space') || input.pressed('KeyJ')) this.interact();
 
     this.working = false;
-    if (input.down('KeyE') || input.down('KeyL')) this.work(dt);
+    // town hall demo: Space is the only action key, so holding it works too
+    if (input.down('KeyE') || input.down('KeyL') || (this.mode === 'townhall' && input.down('Space'))) this.work(dt);
 
     this.animatePlayer(dt, moving || this.dashT > 0);
     this.animateHeld(dt, moving);
@@ -557,11 +582,25 @@ export class Game {
       return;
     }
     if (st.fire) {
-      this.ui.float(st.slot, `It's ON FIRE! Use the 🧯 Playbook (${keyHint('work')})`, 'bad');
+      this.ui.float(st.slot, this.mode === 'townhall' ? `🔥 ${holdHint()}!` : `It's ON FIRE! Use the 🧯 Playbook (${keyHint('work')})`, 'bad');
       sfx.wrong();
       return;
     }
     const held = this.held;
+
+    if (this.townhall) {
+      if (st.kind === 'deliver' && held) {
+        const o = this.orders.find((x) => STATIONS[x.from].item === held.type);
+        this.takeHeld().dispose();
+        if (o) this.achieve(o, st);
+      } else if (held) this.ui.float(st.slot, this.world.stations.some((s) => s.fire) ? 'Fire first! Follow the red beam' : 'Follow the green beam', 'info');
+      else if (this.wanted(st)) {
+        this.hold(new Item(st.dispense.item, this.scene));
+        sfx.pickup();
+        this.npcSay(st, pick(st.dispense.lines));
+      } else this.ui.float(st.slot, this.world.stations.some((s) => s.fire) ? 'Fire first! Follow the red beam' : 'Follow the green beam', 'info');
+      return;
+    }
 
     switch (st.kind) {
       case 'dispenser': {
@@ -665,7 +704,7 @@ export class Game {
     const st = this.target;
     if (!st || st.takenBy) return;
     if (st.fire) {
-      if (this.held?.type !== 'playbook') {
+      if (this.held?.type !== 'playbook' && this.mode !== 'townhall') {
         if (Math.random() < dt * 2) this.ui.float(st.slot, 'Need the 🧯 Incident Response Playbook!', 'bad');
         return;
       }
@@ -698,7 +737,12 @@ export class Game {
   touchContext() {
     const st = this.target, held = this.held;
     let icon = null, label = '';
-    if (st && !st.takenBy) {
+    if (this.townhall) {
+      // one button does everything: it just names what it will do right now
+      if (st?.fire) [icon, label] = ['🧯', 'Hold'];
+      else if (held && st?.kind === 'deliver') [icon, label] = ['📁', 'Deliver'];
+      else if (!held && this.wanted(st)) [icon, label] = ['✋', 'Grab'];
+    } else if (st && !st.takenBy) {
       const folderish = held && st.item && (held.type === 'folder' || st.item.type === 'folder');
       if (st.fire) {
         if (!held && st.item?.type === 'playbook') [icon, label] = ['✋', 'Grab'];
@@ -708,13 +752,13 @@ export class Game {
       } else if (st.kind === 'trash') {
         if (held) [icon, label] = ['🗑️', 'Shred'];
       } else if (st.kind === 'deliver') {
-        if (held?.type === 'folder') [icon, label] = ['📁', 'Deliver'];
+        if (held?.type === 'folder' || (this.townhall && held)) [icon, label] = ['📁', 'Deliver'];
       } else if (!held && st.item) [icon, label] = ['✋', 'Grab'];
       else if (held && !st.item) [icon, label] = ['📥', 'Place'];
       else if (folderish) [icon, label] = ['📥', 'Add'];
     }
     const workable = st && !st.takenBy && (st.fire
-      ? held?.type === 'playbook'
+      ? held?.type === 'playbook' || this.mode === 'townhall'
       : st.kind === 'workstation' && st.item && PROCESS.workstation[st.item.type]);
     return {
       icon: icon ?? '✋',
@@ -734,6 +778,17 @@ export class Game {
 
   describeHeld() {
     const h = this.held;
+    if (this.townhall) {
+      // one short instruction at a time
+      const o = this.orders[0], st = this.target;
+      const say = (emoji, hint) => ({ emoji, name: '', hint, contents: [] });
+      // a fire interrupts everything until it's out
+      if (st?.fire) return say('🔥', `${holdHint()} to put out the fire`);
+      if (this.world.stations.some((s) => s.fire)) return say('🔥', 'Fire! Walk to the red beam');
+      if (!o) return say('⏳', 'Get ready...');
+      if (h) return st?.kind === 'deliver' ? say('🏛️', `${pressHint()} to deliver`) : say('👉', 'Carry it to the green beam');
+      return this.wanted(st) ? say('✋', `${pressHint()} to grab it`) : say('👉', 'Walk to the green beam');
+    }
     if (!h) return null;
     const d = h.def;
     let hint;
@@ -752,13 +807,14 @@ export class Game {
   // STATIONS
   // -------------------------------------------------------------------------
   updateStations(dt) {
+    this.hudBar = null; // progress of the station you're facing, drawn in the HUD (ui.js)
     for (const st of this.world.stations) {
       let bar = null;
 
       if (st.fire) {
         st.fireT += dt;
         this.confidence -= TUNING.fireDrain * dt;
-        if (st.fireT >= TUNING.fireSpreadTime) {
+        if (st.fireT >= TUNING.fireSpreadTime && !this.townhall) {
           st.fireT = 0;
           this.spreadFire(st);
         }
@@ -791,6 +847,10 @@ export class Game {
         bar = { p: st.progress, color: 0x33dd66 };
       }
 
+      if (bar && st === this.target) {
+        this.hudBar = bar;
+        bar = null; // no need to look up for it
+      }
       if (bar) {
         st.barBg.visible = st.barFg.visible = true;
         st.barFg.scale.x = 0.76 * clamp(bar.p, 0, 1);
@@ -858,6 +918,7 @@ export class Game {
   // ORDERS / INITIATIVES
   // -------------------------------------------------------------------------
   updateOrders(dt) {
+    if (this.townhall) return this.updateAchievements(dt);
     this.spawnIn -= dt;
     if (this.spawnIn <= 0) {
       this.spawnOrder();
@@ -876,6 +937,77 @@ export class Game {
       }
       if (o.overdue) this.confidence -= TUNING.overdueDrain * dt;
     }
+  }
+
+  // Town hall demo: one achievement ticket at a time, in list order. The timer
+  // is for drama only: running late costs nothing.
+  updateAchievements(dt) {
+    const add = (name, from, time, extra) => {
+      this.orders.push({
+        id: this.nextOrderId++, recipe: { name, needs: [] }, from, extra,
+        timeTotal: time, timeLeft: time, overdue: false, urgent: false, born: this.time,
+      });
+      sfx.email();
+    };
+    this.spawnIn -= dt;
+    if (this.overload) {
+      // finale: made-up requests arrive faster and faster until the backlog bursts
+      if (this.spawnIn <= 0) {
+        if (this.orders.length >= TUNING.maxBacklog) return this.endGame('backlog');
+        add(pick(RECIPES).name, pick(['K', 'X', 'L', 'T', 'H']), 30, true);
+        this.spawnInterval = Math.max(1.5, this.spawnInterval * 0.9);
+        this.spawnIn = this.spawnInterval;
+      }
+    } else if (!this.orders.length && this.spawnIn <= 0) {
+      const t = TOWNHALL_TICKETS[this.achieved.length];
+      add(t.name, t.from, 90, false);
+    }
+    for (const o of this.orders) {
+      o.timeLeft -= dt;
+      if (o.overdue || o.timeLeft > 0) continue;
+      o.overdue = true;
+      if (this.overload) continue;
+      this.shake = 0.3;
+      sfx.overdue();
+      this.ui.toast('⏰ Running late. Keep going!', 'bad');
+    }
+  }
+
+  // town hall: does any open ticket need what this desk hands out?
+  wanted(st) {
+    return !!st?.dispense && this.orders.some((o) => STATIONS[o.from].item === st.dispense.item);
+  }
+
+  achieve(o, st) {
+    this.orders.splice(this.orders.indexOf(o), 1);
+    this.score += 100;
+    this.stats.delivered++;
+    this.confidence = TUNING.startConfidence;
+    sfx.deliver();
+    if (o.extra) return this.ui.float(st.slot, '✅ Delivered!', 'good');
+    this.achieved.push(o.recipe.name);
+    this.spawnIn = 1.5;
+    this.ui.banner(`🏆 ${o.recipe.name}`, `Delivered! ${this.achieved.length} of ${TOWNHALL_TICKETS.length}`, 'good');
+    if (st.npc) this.npcSay(st, 'Outstanding work.');
+    if (this.achieved.length < TOWNHALL_TICKETS.length) return;
+    // all done: same simple rules, but now the requests never stop
+    this.overload = true;
+    this.spawnInterval = 4;
+    this.spawnIn = 4;
+    this.chaosIn = 6;
+    setTimeout(() => this.ui.banner('✅ ALL ACHIEVEMENTS DELIVERED', 'But the requests keep coming...', 'warn'), 2500);
+  }
+
+  // green beam over the next place to go (town hall demo only)
+  updateBeacon() {
+    const o = this.townhall && this.orders[0];
+    const fire = this.townhall && this.world.stations.find((s) => s.fire);
+    const st = fire || (o && this.world.stations.find((s) => (this.held ? s.kind === 'deliver' : s.dispense?.item === STATIONS[o.from].item)));
+    this.beacon.material.color.setHex(fire ? 0xff3322 : 0x44ff88);
+    this.beacon.visible = !!st;
+    if (!st) return;
+    this.beacon.position.set(st.x, 2, st.z);
+    this.beacon.material.opacity = 0.35 + Math.sin(this.time * 6) * 0.15;
   }
 
   spawnOrder(opts = {}) {
@@ -942,9 +1074,10 @@ export class Game {
     }
     this.chaosIn -= dt;
     if (this.chaosIn > 0) return;
-    const [a, b] = TUNING.chaosEvery;
+    const [a, b] = this.overload ? [8, 12] : this.townhall ? [25, 35] : TUNING.chaosEvery;
     this.chaosIn = a + Math.random() * (b - a);
-    const events = ['incident', 'replyall', 'audit'];
+    const events = this.townhall ? ['incident'] : ['incident', 'replyall', 'audit'];
+    if (this.townhall && this.world.stations.filter((s) => s.fire).length >= 2) return; // drama, not an inferno
     this.triggerChaos(pick(events));
   }
 
@@ -957,7 +1090,8 @@ export class Game {
         const st = pick(options);
         if (st.item && st.item.type !== 'playbook') { st.item.dispose(); st.item = null; }
         this.setFire(st, true);
-        this.ui.banner('🔥 PRODUCTION INCIDENT!', `Someone deployed on a Friday. Grab the 🧯 Playbook and ${keyHint('work')} on the fire!`, 'bad');
+        if (this.mode === 'townhall') this.ui.banner('🔥 FIRE!', `Walk up to it and ${holdHint().replace('Hold', 'hold')}`, 'bad');
+        else this.ui.banner('🔥 PRODUCTION INCIDENT!', `Someone deployed on a Friday. Grab the 🧯 Playbook and ${keyHint('work')} on the fire!`, 'bad');
         sfx.alarm();
         break;
       }
@@ -980,7 +1114,8 @@ export class Game {
   endGame(reason) {
     if (this.state !== 'playing') return;
     this.state = 'over';
-    this.gameOverReason = reason;
+    this.gameOverReason = this.mode === 'townhall' ? 'townhall' : reason;
+    this.beacon.visible = false;
     sfx.gameover();
     this.ui.showGameOver(this);
   }

@@ -1,7 +1,7 @@
 // Touch vs keyboard/mouse mode. Starts from the primary pointer and then
 // follows whatever the player actually uses (hybrid laptops, BT keyboards).
 const listeners = [];
-export const device = { touch: false };
+export const device = { touch: false, pad: false, padA: 'Ⓐ' }; // pad: a controller is in use (main.js)
 
 export function setTouch(on) {
   if (device.touch === on) return;
@@ -15,11 +15,15 @@ export const onDeviceChange = (fn) => listeners.push(fn);
 // The words for an action in on-screen hints, e.g. `hold E` vs `hold 🛠️`
 const KEYS = { grab: 'Space', work: 'hold E' };
 const TOUCH = { grab: '✋', work: 'hold 🛠️' };
-export const keyHint = (action) => (device.touch ? TOUCH : KEYS)[action];
+export const keyHint = (action) => (device.pad ? { grab: device.padA, work: 'hold Ⓧ' } : device.touch ? TOUCH : KEYS)[action];
+export function setPad(on) {
+  device.pad = on;
+  document.body.classList.toggle('pad', on);
+}
 
 setTouch(matchMedia('(pointer: coarse)').matches);
 window.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'touch' || e.pointerType === 'pen') setTouch(true);
   else if (e.pointerType === 'mouse') setTouch(false);
 }, true);
-window.addEventListener('keydown', () => setTouch(false), true);
+window.addEventListener('keydown', () => { setTouch(false); setPad(false); }, true);

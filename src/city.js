@@ -91,7 +91,7 @@ function streetTexture() {
 // Geometry helpers
 // ---------------------------------------------------------------------------
 // Box whose UVs are in "bays x floors" so facade textures tile at true scale.
-function facadeBox(w, h, d, bay = 1, floor = 1) {
+export function facadeBox(w, h, d, bay = 1, floor = 1) {
   const geo = new THREE.BoxGeometry(w, h, d);
   const uv = geo.attributes.uv;
   const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
@@ -149,11 +149,20 @@ function prism(shape, h, mat, segs = 8) {
 // ---------------------------------------------------------------------------
 // Landmarks
 // ---------------------------------------------------------------------------
+// Shared with the lift shaft's outer skin in world.js so it matches the tower.
+let wpGlass;
+export function westpacGlass() {
+  if (!wpGlass) {
+    const tex = curtainWall({ glass: '#3f6f86', mullion: '#c9d3d8', spandrel: '#2c4756', spandrelH: 0.3 });
+    tex.repeat.set(1 / 1.5, 1 / 2.5);
+    wpGlass = lambert({ map: tex });
+  }
+  return wpGlass;
+}
+
 function westpacPlace(scene, W, H) {
   // Blue-green glass curtain wall with a spandrel band at every floor.
-  const tex = curtainWall({ glass: '#3f6f86', mullion: '#c9d3d8', spandrel: '#2c4756', spandrelH: 0.3 });
-  tex.repeat.set(1 / 1.5, 1 / 2.5);
-  const glass = lambert({ map: tex });
+  const glass = westpacGlass();
   const mats = [glass, glass, roofMat, roofMat, glass, glass];
 
   // main tower under our floor
@@ -248,9 +257,11 @@ function amexBuilding(scene) {
     scene.add(c);
   }
 
-  // leaning, irregularly spaced chopsticks standing just off the east face
+  // leaning, irregularly spaced chopsticks standing just off the east face,
+  // all stopping short of the sign band at the top
+  const signW = 20, signH = 2.4;
   for (let t = 1; t < east.len - 0.5; t += rand(0.8, 2.2)) {
-    const k = t / east.len, len = h + rand(-4, 1.5);
+    const k = t / east.len, len = h - signH - 1 - rand(0, 4);
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.35, len, 0.35), orange);
     m.position.set(
       pNE[0] + (pSE[0] - pNE[0]) * k + east.n[0] * 1.1,
@@ -261,9 +272,9 @@ function amexBuilding(scene) {
     scene.add(m);
   }
 
-  // "AMERICAN EXPRESS" in white letters across the top of the east face, the side
-  // we look at from Westpac Place, mounted just proud of the chopsticks
-  const signW = 20, signH = 2.4;
+  // "AMERICAN EXPRESS" in white letters at the top right (north end) of the east
+  // face, the side we look at from Westpac Place, mounted just proud of the chopsticks
+  const signK = (signW / 2 + 1.5) / east.len; // sign centre, as a fraction along NE -> SE
   const signTex = canvasTex(1024, 128, (g, w, hh) => {
     g.fillStyle = '#ffffff';
     g.font = 'bold 88px "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -273,9 +284,9 @@ function amexBuilding(scene) {
   }, false);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(signW, signH), lambert({ map: signTex, transparent: true, alphaTest: 0.1 }));
   sign.position.set(
-    (pNE[0] + pSE[0]) / 2 + east.n[0] * 1.6,
+    pNE[0] + (pSE[0] - pNE[0]) * signK + east.n[0] * 1.6,
     GROUND + h - signH / 2 - 0.6,
-    (pNE[1] + pSE[1]) / 2 + east.n[1] * 1.6,
+    pNE[1] + (pSE[1] - pNE[1]) * signK + east.n[1] * 1.6,
   );
   sign.rotation.y = east.angle;
   scene.add(sign);
