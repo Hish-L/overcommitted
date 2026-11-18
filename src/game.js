@@ -20,10 +20,12 @@ const RISE = { from: 0, to: 7.5 };
 // ...then we turn to face the doors, they open, the glass door slides, and we walk out
 const TURN = { from: 7.5, to: 8 };
 const LIFT = { open: 8, glass: 8.4, walk: 8.8, end: 10.5 };
-// ...and stand there while "Level 6" fades into a big "SCA"; control comes after
-const TITLE = { level: LIFT.end, sca: LIFT.end + 1.7, end: LIFT.end + 4.2 };
+// "Level 6" shows during the first-person ride, a big "SCA" as we walk out; control comes after
+const TITLE = { level: INTRO_TIME + 0.7, levelFor: 3, sca: LIFT.walk, end: LIFT.end + 0.8 };
 const smooth = (k) => k * k * (3 - 2 * k);
 const LOOK_SENS = 0.0025;
+const OUTAGE_TIME = 10; // Outlook outage: seconds you can't move or do anything
+const MEETING_LINES = ["Let's take this offline.", 'Can everyone see my screen?', "You're on mute.", "Let's circle back on that.", 'This could have been an email.', 'Quick one, promise.', 'Any other business?', "Let's align on next steps."];
 const TURN_SPEED = 2.6; // rad/s for arrow-key turning
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -106,6 +108,7 @@ export class Game {
     // first person: the body stays in the world (shadow, collisions) but we never
     // see it, except during the intro fly-in, along with a "YOU" tag
     this.youTag = labelSprite('▼ YOU', 0.3, '#e0482f');
+    this.youTag.userData.always = true; // the one label that shows before you're on the floor
     scene.add(this.youTag);
     this.showBody(false);
 
@@ -181,10 +184,12 @@ export class Game {
     // TOWNHALL_TICKETS is delivered; after that the normal rules take over
     this.townhall = this.mode === 'townhall';
     this.achieved = [];
+    this.done = []; // delivered story tickets: they stay in the ticket row, green and ticked
     this.overload = false; // town hall finale: same simple rules, requests pile up until the backlog bursts
-    this.chaosIn = this.townhall ? 12 : TUNING.chaosStart;
+    this.chaosIn = TUNING.chaosStart; // town hall: set per story ticket in updateAchievements
     this.chaosN = 0; // town hall takes its interruptions in turn, so the story shows all of them
     this.slowT = 0;
+    this.outageT = 0;
     this.shake = 0;
     this.lastRecipe = null;
     this.gameOverReason = null;
@@ -218,6 +223,12 @@ export class Game {
     const { body, legL, legR } = this.player.userData;
     for (const part of [body, legL, legR]) part.visible = v;
     this.youTag.visible = v;
+  }
+
+  // station signs and name tags stay hidden on the menu and for the lift ride (they'd show
+  // through the walls); they appear as you walk out
+  get labelsOn() {
+    return this.state !== 'menu' && !(this.state === 'intro' && this.introT < LIFT.walk);
   }
 
   // first-person part of the lift ride, when the player can look around
@@ -264,8 +275,8 @@ export class Game {
       this.walkT += dt * 9;
       this.wobble = k < 1 ? 1 : 0;
     }
-    if (prev < TITLE.level && t >= TITLE.level && t < TITLE.sca) this.ui.titleCard('Level 6', 1300);
-    if (prev < TITLE.sca && t >= TITLE.sca && t < TITLE.end) this.ui.titleCard('SCA', 2000, true);
+    if (prev < TITLE.level && t >= TITLE.level && t < TITLE.sca) this.ui.titleCard('LEVEL <span>6</span>', TITLE.levelFor * 1000);
+    if (prev < TITLE.sca && t >= TITLE.sca && t < TITLE.end) this.ui.titleCard('<span>SCA</span>', 2000, true);
     if (t >= TITLE.end) this.finishIntro();
   }
 
@@ -332,6 +343,8 @@ export class Game {
   updatePlayer(dt, input) {
     const p = this.player;
     const ud = p.userData;
+    // Outlook outage: no moving, no grabbing, no working (you can still look around in despair)
+    if (this.outageT > 0) input = { down: () => false, pressed: () => false };
 
 
     // turning: mouse (see look()) or arrow keys
@@ -594,7 +607,7 @@ export class Game {
       this.ui.float(st.slot, `${CHORES[st.chore.kind].emoji} ${this.townhall ? holdHint() : `Hold ${keyHint('work')}`} to ${CHORES[st.chore.kind].verb}`, 'info');
       return;
     }
-    if (st.kind === 'planter') return;
+    if (st.kind === 'planter' || st.kind === 'tv') return;
     const held = this.held;
 
     if (this.townhall) {
@@ -730,7 +743,10 @@ export class Game {
     if (st.chore) {
       const { kind } = st.chore;
       this.working = true;
-      if (Math.random() < dt * (kind === 'shred' ? 6 : 12)) kind === 'shred' ? sfx.shred() : sfx.drip();
+      if (kind === 'shred' && Math.random() < dt * 6) sfx.shred();
+      if (kind === 'water' && Math.random() < dt * 12) sfx.drip();
+      // the meeting: Pat, Lorna and Shiv take turns saying nothing
+      if (kind === 'meeting' && Math.random() < dt * 0.9) this.npcSay(pick(this.world.stations.filter((s) => s.key === 'M')), pick(MEETING_LINES));
       if (this.chores.work(st, dt)) {
         sfx.done();
         this.ui.float(st.slot, CHORES[kind].done, 'good');
@@ -802,6 +818,7 @@ export class Game {
       // one short instruction at a time
       const o = this.orders[0], st = this.target;
       const say = (emoji, hint) => ({ emoji, name: '', hint, contents: [] });
+      if (this.outageT > 0) return say('📧', `Outlook is down. You can't move or do anything (${Math.ceil(this.outageT)}s)`);
       // a fire interrupts everything until it's out
       if (st?.fire) return say('🔥', `${holdHint()} to put out the fire`);
       if (this.world.stations.some((s) => s.fire)) return say('🔥', 'Fire! Walk to the red beam');
@@ -835,6 +852,7 @@ export class Game {
     this.confidence -= TUNING.choreDrain * this.chores.list.length * dt;
     const chore = this.target?.chore;
     if (chore?.t > 0) this.hudBar = { p: chore.t / CHORES[chore.kind].time, color: CHORES[chore.kind].color };
+    if (this.outageT > 0) this.hudBar = { p: 1 - this.outageT / OUTAGE_TIME, color: 0x2a7de1 };
     for (const st of this.world.stations) {
       let bar = null;
 
@@ -929,7 +947,7 @@ export class Game {
   spreadFire(st) {
     const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]]
       .map(([dc, dr]) => this.world.cell(st.c + dc, st.r + dr)?.station)
-      .filter((s) => s && !s.fire && s.kind !== 'deliver' && s.kind !== 'planter');
+      .filter((s) => s && !s.fire && s.kind !== 'deliver' && s.kind !== 'planter' && s.kind !== 'tv');
     if (!neighbors.length) return;
     const n = pick(neighbors);
     this.setFire(n, true);
@@ -966,8 +984,8 @@ export class Game {
     }
   }
 
-  // Town hall demo: one achievement ticket at a time, in list order. The timer
-  // is for drama only: running late costs nothing.
+  // Town hall demo: one achievement ticket at a time, in list order, with no
+  // timer. Only the finale's made-up requests count down (for drama: late costs nothing).
   updateAchievements(dt) {
     const add = (name, from, time, extra, story) => {
       this.orders.push({
@@ -981,22 +999,20 @@ export class Game {
       // finale: made-up requests arrive faster and faster until the backlog bursts
       if (this.spawnIn <= 0) {
         if (this.orders.length >= TUNING.maxBacklog) return this.endGame('backlog');
+        this.done = []; // the finished story cards make room for the pile-up
         add(pick(RECIPES).name, pick(['K', 'X', 'L', 'T', 'H']), 30, true);
         this.spawnInterval = Math.max(1.5, this.spawnInterval * 0.9);
         this.spawnIn = this.spawnInterval;
       }
     } else if (!this.orders.length && this.spawnIn <= 0) {
       const t = TOWNHALL_TICKETS[this.achieved.length];
-      add(t.name, t.from, 90, false, t.story);
+      add(t.name, t.from, 90, false, t.story); // story tickets have no clock (the time is never counted down)
+      this.chaosIn = 3; // its one interruption comes this long after the pop-up docks
     }
     for (const o of this.orders) {
+      if (o.story) continue;
       o.timeLeft -= dt;
-      if (o.overdue || o.timeLeft > 0) continue;
-      o.overdue = true;
-      if (this.overload) continue;
-      this.shake = 0.3;
-      sfx.overdue();
-      this.ui.toast('⏰ Running late. Keep going!', 'bad');
+      if (o.timeLeft <= 0) o.overdue = true;
     }
   }
 
@@ -1013,6 +1029,8 @@ export class Game {
     sfx.deliver();
     if (o.extra) return this.ui.float(st.slot, '✅ Delivered!', 'good');
     this.achieved.push(o.recipe.name);
+    o.done = true;
+    this.done.push(o);
     this.spawnIn = 4; // let the "Delivered!" banner clear before the next story pops up
     this.ui.banner(`🏆 ${o.recipe.name}`, `Delivered! ${this.achieved.length} of ${TOWNHALL_TICKETS.length}`, 'good');
     if (st.npc) this.npcSay(st, 'Outstanding work.');
@@ -1100,14 +1118,26 @@ export class Game {
       this.slowT -= dt;
       if (this.slowT <= 0) this.ui.setStatus(null);
     }
+    if (this.outageT > 0) {
+      this.outageT -= dt;
+      if (this.outageT <= 0) {
+        sfx.done();
+        this.ui.banner('📧 OUTLOOK IS BACK', 'You have 1,204 unread emails. As you were.', 'good');
+      }
+    }
+    // town hall story: exactly one interruption per ticket, a few seconds after its pop-up has docked
+    const story = this.townhall && !this.overload;
+    const ticket = story && this.orders[0];
+    if (story && (!ticket || ticket.distracted || this.time - ticket.born < TUNING.storyHold + 1)) return;
     this.chaosIn -= dt;
     if (this.chaosIn > 0) return;
-    const [a, b] = this.overload ? [8, 12] : this.townhall ? [16, 22] : TUNING.chaosEvery;
+    const [a, b] = this.overload ? [8, 12] : story ? [2, 2] : TUNING.chaosEvery; // story: retry soon if it had to wait
     this.chaosIn = a + Math.random() * (b - a);
     const events = ['incident', 'replyall', 'audit', 'plants', 'papers'];
     if (this.townhall && this.world.stations.filter((s) => s.fire).length >= 2) return; // drama, not an inferno
     if (this.townhall && this.chores.list.length) return; // one interruption story at a time
-    this.triggerChaos(this.townhall ? ['plants', 'papers', 'incident'][this.chaosN++ % 3] : pick(events));
+    this.triggerChaos(this.townhall ? (story ? ['meeting', 'training', 'outage'] : ['plants', 'papers', 'incident'])[this.chaosN++ % 3] : pick(events));
+    if (ticket) ticket.distracted = true;
   }
 
   triggerChaos(kind0) {
@@ -1132,6 +1162,21 @@ export class Game {
         if (kind === 'water') this.ui.banner('🥀 THE PLANTS ARE WILTING!', `Nobody watered them since the reorg. ${how} to water each one.`, 'warn');
         else this.ui.banner('📄 CONFIDENTIAL PAPERS!', `Someone left the board pack on the shredder. ${how} to shred it.`, 'warn');
         sfx.email();
+        break;
+      }
+      case 'meeting':
+      case 'training': {
+        if (!this.chores.start(kind0)) return;
+        const hold = holdHint().replace('Hold', 'hold');
+        if (kind0 === 'meeting') this.ui.banner('🗣️ NEEDLESS MEETING!', `Pat, Lorna and Shiv "just need 10 minutes". Face them in the Meeting Room and ${hold} until it's over.`, 'warn');
+        else this.ui.banner('🎓 eAcademy: MANDATORY TRAINING OVERDUE', `Timesheet Compliance Policy (Planview). Face the wall TV and ${hold} through every slide.`, 'warn');
+        sfx.email();
+        break;
+      }
+      case 'outage': {
+        this.outageT = OUTAGE_TIME;
+        this.ui.banner('📧 MICROSOFT OUTLOOK IS DOWN', "You can't move or do anything until it's back. Nobody can. Have you tried turning it off and on again?", 'bad', OUTAGE_TIME * 1000);
+        sfx.alarm();
         break;
       }
       case 'replyall': {

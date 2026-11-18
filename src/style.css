@@ -24,7 +24,7 @@ kbd {
   display: flex; gap: 8px; align-items: flex-start; flex-wrap: nowrap;
 }
 .ticket {
-  flex: 0 1 170px; min-width: 110px; background: #fffdf4; color: #222; border-radius: 10px;
+  flex: 0 1 170px; min-width: 110px; background: #fffdf4; color: #222; border-radius: 10px; text-align: center;
   padding: 7px 9px 8px; box-shadow: 0 4px 0 #c7bfa5, 0 6px 14px rgba(0,0,0,.35);
   transition: transform .35s cubic-bezier(.2,1.6,.4,1), opacity .3s; border-top: 6px solid #3a7bd5;
 }
@@ -35,7 +35,7 @@ kbd {
 .t-head { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #666; }
 .ticket.overdue .t-time { color: #d32f2f; }
 .t-name { font-weight: 800; font-size: 13px; line-height: 1.15; margin: 3px 0 5px; min-height: 30px; }
-.t-needs { display: flex; gap: 4px; flex-wrap: wrap; }
+.t-needs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
 .chip {
   font-size: 19px; background: #ece6d2; border-radius: 7px; padding: 1px 4px; line-height: 1.3;
   border: 2px solid transparent;
@@ -112,11 +112,14 @@ kbd {
 
 #title-card {
   position: fixed; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(.8); opacity: 0; pointer-events: none;
-  font-size: 67px; font-weight: 900; letter-spacing: 5px; color: #ffc23d;
-  text-shadow: 0 2px 0 #b35a00, 0 4px 0 #7a3a00, 0 6px 14px rgba(0,0,0,.85), 0 0 24px rgba(255,170,40,.55);
+  /* same look as the menu's OVERCOMMITTED logo: yellow with a hard drop edge, <span> = the red half
+     (plus a soft dark shadow, since this sits on the 3D view rather than the dark card) */
+  font-size: clamp(67px, 6vw, 120px); font-weight: 900; letter-spacing: .02em; line-height: 1; color: #ffcf33;
+  text-shadow: 0 .074em 0 #a86f00, 0 .12em .3em rgba(0,0,0,.7);
   transition: opacity .3s, transform .3s cubic-bezier(.2,1.6,.4,1); white-space: nowrap;
 }
 #title-card.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#title-card span { color: #ff5b5b; text-shadow: 0 .074em 0 #8f1f1f, 0 .12em .3em rgba(0,0,0,.7); }
 
 #world-ui { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .bubble, .float, .label { position: absolute; left: 0; top: 0; white-space: nowrap; }
@@ -144,13 +147,17 @@ kbd {
 /* main menu: card on the left, no dimming, so the building shows on the right */
 #menu { justify-content: flex-start; padding-left: 3vw; background: none; backdrop-filter: none; }
 /* the posing characters stand on the card's top edge, outside it (the card scrolls/clips) */
-.menu-wrap { position: relative; width: clamp(280px, 34vw, 440px); max-width: 94vw; margin-top: calc(clamp(280px, 34vw, 440px) * 0.46); container-type: inline-size; }
+/* width: at least a 280-396px card, growing on big/wide windows to fill the space left of the building
+   (the menu camera puts its roof's left edge at about 70vw - 54vh; the card takes 90% of that room) without outgrowing the window's height */
+.menu-wrap { --w: max(clamp(280px, 30.6vw, 396px), min(58.5vw - 48.6vh, 70vh)); position: relative; width: var(--w); max-width: 94vw; margin-top: calc(var(--w) * 0.46); container-type: inline-size; }
 #menu-heroes { position: absolute; left: 0; bottom: calc(100% - 4cqi); width: 100%; height: 50cqi; pointer-events: none; z-index: 1; }
 /* spotlit backdrop behind them so they don't get lost against the city; tucks under the card's top corners */
 .menu-wrap::before {
-  content: ''; position: absolute; z-index: -1; left: 10cqi; right: 10cqi; bottom: calc(100% - 20px); height: calc(46cqi + 20px);
-  border: 2px solid #3c4863; border-bottom: 0; border-radius: 18px 18px 0 0; box-shadow: 0 20px 60px rgba(0,0,0,.5);
-  background: radial-gradient(ellipse 65% 80% at 50% 60%, #fff 0%, #eef2fb 35%, #c3cde4 70%, #98a6c8 100%);
+  content: ''; position: absolute; z-index: -1; left: 0; right: 0; bottom: calc(100% - 20px); height: calc(46cqi + 20px);
+  background: #fff;
+  /* rectangular glow: soft fade on the left, right and top edges (the bottom hides behind the stage) */
+  mask-image: linear-gradient(90deg, #0000, #0003 10%, #000b 22%, #000 32% 68%, #000b 78%, #0003 90%, #0000), linear-gradient(#0000, #0003 15%, #000b 35%, #000 55%);
+  mask-composite: intersect;
 }
 /* the stage deck they stand on: plank top seen in perspective + dark front lip; the card below is the stage's base */
 .menu-wrap::after {
@@ -165,8 +172,8 @@ kbd {
 #menu .logo { font-size: 9.4cqi; letter-spacing: 0.02em; white-space: nowrap; }
 .logo { font-size: 54px; font-weight: 900; letter-spacing: 2px; color: #ffcf33; text-shadow: 0 4px 0 #a86f00; line-height: 1; }
 .logo span { color: #ff5b5b; text-shadow: 0 4px 0 #8f1f1f; }
-.tagline { font-size: 18px; margin: 8px 0 12px; color: #9fc2ff; font-weight: 700; }
-.premise { font-size: 15px; line-height: 1.45; color: #d7deec; }
+.tagline { font-size: 23px; margin: 8px 0 12px; color: #9fc2ff; font-weight: 700; }
+.premise { font-size: 18px; line-height: 1.45; color: #d7deec; }
 .how { text-align: left; display: grid; gap: 6px; margin: 14px 0; font-size: 14px; }
 .how span {
   display: inline-block; width: 22px; height: 22px; border-radius: 50%; background: #ffcf33; color: #222;
@@ -310,8 +317,8 @@ body.touch #status { left: 50%; transform: translateX(-50%); bottom: auto; top: 
   .card { padding: 16px 20px; max-height: calc(100dvh - 16px - var(--sat) - var(--sab)); }
   .menu-wrap { width: clamp(250px, 32vw, 440px); margin-top: calc(clamp(250px, 32vw, 440px) * 0.46); }
   #menu .card { padding: 16px 18px; }
-  .tagline { font-size: 14px; margin: 6px 0 6px; }
-  .premise { font-size: 13px; margin: 6px 0; }
+  .tagline { font-size: 17px; margin: 6px 0 6px; }
+  .premise { font-size: 15px; margin: 6px 0; }
   .buttons { margin-top: 10px; }
   button { font-size: 14px; padding: 9px 16px; }
   .go-title { font-size: 24px; }
@@ -357,23 +364,25 @@ body.townhall .float { font-size: clamp(16px, 2vw, 24px); }
 body.townhall .b-text { font-size: clamp(15px, 2vw, 24px); }
 body.townhall #controls { font-size: clamp(12px, 1.4vw, 17px); }
 body.townhall #controls.mini .full:not(.adv):not(.key-work) { display: inline; }
-body.townhall .ticket.achievement { flex-basis: 340px; }
-body.townhall .ticket.achievement .t-name { font-size: clamp(16px, 2.2vw, 26px); }
-body.townhall .ticket.achievement .t-head { font-size: clamp(11px, 1.3vw, 16px); }
-/* story pop-up: the ticket itself, shown big mid-screen (ui.popTicket) before it flies to the row */
-.t-story { display: none; font-style: italic; color: #555; font-size: clamp(12px, 1.5vw, 18px); line-height: 1.25; margin-top: 4px; }
+body.townhall .ticket.achievement { flex-basis: 460px; padding: 10px 14px 12px; }
+body.townhall .ticket.achievement .t-name { font-size: clamp(18px, 2.6vw, 32px); }
+body.townhall .ticket.achievement .t-head { font-size: clamp(12px, 1.5vw, 19px); }
+/* story tickets have no timer; once delivered they stay in the row, green with a tick */
+.ticket.untimed .t-time, .ticket.untimed .t-bar, .t-tick { display: none; }
+.ticket.done { background: #d5f5dd; border-top-color: #2bb673; }
+.ticket.done .t-tick { display: inline; margin: 0 auto; color: #1a7a4b; font-weight: 900; }
+/* story pop-up: the ticket itself, shown big mid-screen (ui.popTicket) before it flies to the row,
+   where it keeps its story line */
+.t-story { font-style: italic; color: #555; font-size: clamp(13px, 1.7vw, 21px); line-height: 1.25; margin-top: 4px; }
 .ticket.pop { position: relative; z-index: 50; transition: transform .7s cubic-bezier(.3,1.2,.4,1), opacity .3s, box-shadow .7s;
   box-shadow: 0 4px 0 #c7bfa5, 0 6px 14px rgba(0,0,0,.35), 0 0 0 200vmax rgba(8,10,18,.5); /* dims everything else */ }
 .ticket.pop.dock { box-shadow: 0 4px 0 #c7bfa5, 0 6px 14px rgba(0,0,0,.35), 0 0 0 200vmax rgba(8,10,18,0); }
-.ticket.pop .t-story { display: block; }
 #work-bar { position: fixed; left: 50%; top: 58%; transform: translateX(-50%); width: 220px; height: 16px; background: rgba(0,0,0,.6); border: 2px solid #fff; border-radius: 9px; overflow: hidden; pointer-events: none; }
 #work-bar div { height: 100%; width: 0; }
 body.pad #controls .full { display: none !important; } /* keyboard hints make no sense on a controller */
 /* the big "SCA" reveal after the lift */
 body #title-card.big {
-  top: 42%; font-size: clamp(110px, 26vw, 380px); letter-spacing: .08em; color: #fff;
-  -webkit-text-stroke: clamp(3px, .5vw, 8px) #e0482f; paint-order: stroke fill;
-  text-shadow: 0 .04em 0 #7a1608, 0 .08em .2em rgba(0,0,0,.85), 0 0 .5em rgba(255,90,50,.9);
+  top: 42%; font-size: clamp(110px, 26vw, 380px);
   transition: opacity .5s, transform .5s cubic-bezier(.2,1.6,.4,1);
 }
 /* main menu buttons: Check In across the top, the other two side by side below
@@ -381,10 +390,16 @@ body #title-card.big {
 #menu .buttons { display: grid; grid-template-columns: 1fr 1fr; }
 #menu .buttons button { padding-inline: 8px; white-space: nowrap; min-height: 46px; }
 #menu .buttons .primary { grid-column: 1 / -1; }
-@container (max-width: 340px) { #menu .buttons { grid-template-columns: 1fr; gap: 8px; } }
+@container (max-width: 305px) { #menu .buttons { grid-template-columns: 1fr; gap: 8px; } }
 /* town hall demo on touch: a single action button */
 body.townhall #tb-work, body.townhall #tb-dash { display: none; }
-/* xlarge screens: scale the whole main menu up (height-gated so it always fits) */
-@media (min-width: 1800px) and (min-height: 1000px) { .menu-wrap { zoom: 1.3; } }
-@media (min-width: 2400px) and (min-height: 1300px) { .menu-wrap { zoom: 1.7; } }
-@media (min-width: 3200px) and (min-height: 1800px) { .menu-wrap { zoom: 2.3; } }
+/* roomy windows: the card's contents grow with the card (px sizes are the floor, for the smallest cards).
+   Sized from --w, not cqi: Firefox resolves cqi here against a stale card width until the element is hovered. */
+@media (min-height: 600px) {
+  #menu .card { --u: calc(var(--w) * 0.00872); padding: max(25px, var(--w) * 0.064); } /* --u: 1% of the card's inner width */
+  #menu .logo { font-size: calc(10.8 * var(--u)); }
+  #menu .tagline { font-size: max(21px, 6 * var(--u)); margin: .45em 0 .65em; }
+  #menu .premise { font-size: max(16px, 4.7 * var(--u)); }
+  #menu .buttons { gap: max(9px, 2.6 * var(--u)); margin-top: max(14px, 4.2 * var(--u)); }
+  #menu .buttons button { font-size: max(14px, 4.2 * var(--u)); padding-block: .6em; min-height: 2.9em; border-radius: .6em; }
+}

@@ -29,14 +29,14 @@ export class UI {
     // tickets
     const heldContents = game.held?.type === 'folder' ? game.held.contents : [];
     const live = new Set();
-    for (const o of game.orders) {
+    for (const o of [...game.done, ...game.orders]) {
       live.add(o.id);
       let el = this.orderEls.get(o.id);
       if (!el) {
         el = document.createElement('div');
-        el.className = `ticket${o.story ? '' : ' enter'}${o.from ? ' achievement' : ''}`;
+        el.className = `ticket${o.story ? ' untimed' : ' enter'}${o.from ? ' achievement' : ''}`;
         el.innerHTML = `
-          <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span></div>
+          <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span><span class="t-tick">✔ Delivered</span></div>
           ${o.story ? `<div class="t-story">${o.story}</div>` : ''}
           <div class="t-name">${o.recipe.name}</div>
           <div class="t-needs">${o.recipe.needs.map((n) => `<span class="chip" data-n="${n}" title="${ITEMS[n].name}">${ITEMS[n].emoji}</span>`).join('')}</div>
@@ -52,6 +52,8 @@ export class UI {
       bar.style.background = p > 0.5 ? '#5af168' : p > 0.25 ? '#ffcc4d' : '#ff6e6e';
       el.querySelector('.t-time').textContent = o.overdue ? `OVERDUE ${fmt(o.timeLeft)}` : fmt(o.timeLeft);
       el.classList.toggle('overdue', o.overdue);
+      el.classList.toggle('done', !!o.done);
+      if (o.done && el.classList.contains('pop')) { el.style.transform = ''; el.classList.remove('pop', 'dock'); } // delivered mid pop-up: dock now
       el.classList.toggle('urgent', o.urgent && !o.overdue);
       el.classList.toggle('panic', !o.overdue && p < 0.2);
       for (const chip of el.querySelectorAll('.chip')) chip.classList.toggle('have', heldContents.includes(chip.dataset.n));
@@ -117,7 +119,7 @@ export class UI {
   }
 
   // Town hall story: the ticket appears big in the middle of the screen with its
-  // story line, holds, then flies up to its slot in the ticket row.
+  // story line, holds for TUNING.storyHold, then flies up to its slot in the ticket row.
   popTicket(el) {
     el.classList.add('pop');
     const r = el.getBoundingClientRect();
@@ -126,21 +128,22 @@ export class UI {
     el.style.transform = `${to} scale(${s * 0.6})`;
     el.style.opacity = 0;
     requestAnimationFrame(() => { el.style.transform = `${to} scale(${s})`; el.style.opacity = 1; });
-    setTimeout(() => { el.style.transform = ''; el.classList.add('dock'); }, 3600);
-    setTimeout(() => el.classList.remove('pop', 'dock'), 4400); // landed: story line folds away
+    setTimeout(() => { el.style.transform = ''; el.classList.add('dock'); }, TUNING.storyHold * 1000);
+    setTimeout(() => el.classList.remove('pop', 'dock'), TUNING.storyHold * 1000 + 800); // landed (keeps its story line)
   }
 
-  banner(title, text, kind = 'bad') {
+  banner(title, text, kind = 'bad', ms = 3800) {
     const el = $('#banner');
     el.className = `show ${kind}`;
     el.innerHTML = `<div class="b-title">${title}</div><div class="b-text">${text}</div>`;
     clearTimeout(this.bannerT);
-    this.bannerT = setTimeout(() => (el.className = ''), 3800);
+    this.bannerT = setTimeout(() => (el.className = ''), ms);
   }
 
-  titleCard(text, ms = 2000, big = false) {
+  // html: our own strings only; a <span> is the red half of the logo's two tones
+  titleCard(html, ms = 2000, big = false) {
     const el = $('#title-card');
-    el.textContent = text;
+    el.innerHTML = html;
     el.classList.toggle('big', big);
     el.classList.add('show');
     clearTimeout(this.titleT);
@@ -194,7 +197,7 @@ export class UI {
 
   // station signs and name tags (models.js labelSprite), sized like a sprite
   // of the same world height. Call after the scene renders so they don't lag.
-  renderLabels() {
+  renderLabels(show = true) {
     const h = window.innerHeight, w = window.innerWidth, cam = this.camera;
     for (const o of labels) {
       const d = o.userData;
@@ -206,7 +209,7 @@ export class UI {
         d.el.style.color = d.fg;
         $('#world-ui').prepend(d.el); // under bubbles and floats
       }
-      let vis = true;
+      let vis = show || !!d.always;
       for (let p = o; p && vis; p = p.parent) vis = p.visible;
       const depth = -o.getWorldPosition(this.tmp).applyMatrix4(cam.matrixWorldInverse).z;
       vis &&= depth > cam.near;

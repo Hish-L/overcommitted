@@ -3,11 +3,14 @@
 // papers gets fed through the shredder. This file owns their state + animation;
 // game.js decides when they start and routes the work key here.
 import * as THREE from 'three';
-import { box, mat, emojiSprite } from './models.js';
+import { box, mat, emojiSprite, TRAINING_SLIDES } from './models.js';
 
 export const CHORES = {
   water: { emoji: '💧', time: 1.0, verb: 'water the plants', call: 'Thirsty plants!', done: '🌿 Much better!', color: 0x55aaff },
   shred: { emoji: '📄', time: 2.6, verb: 'shred the papers', call: 'Papers to shred!', done: '✂️ Shredded. Nothing to see here.', color: 0xffe08a },
+  // the long ones: face the meeting room / the wall TV and hold for the whole thing
+  meeting: { emoji: '🗣️', time: 10, verb: 'sit through the meeting', call: 'Needless meeting!', done: '🗣️ "Great meeting. Let\'s book a follow-up."', color: 0xc9a0ff, tagY: 2.45 },
+  training: { emoji: '🎓', time: 10, verb: 'watch the Planview training', call: 'Mandatory training overdue!', done: '🎓 Certified. Now go fill in your Planview timesheet.', color: 0x9b6bd6, tagY: 2.3 },
 };
 
 const GRAVITY = 6;
@@ -95,6 +98,7 @@ export class Chores {
     viewScene.add(this.can);
     this.pour = 0; // 0..1 how far the can is tipped
     this.shredder = world.stations.find((s) => s.key === 'R');
+    this.meeting = world.stations.filter((s) => s.key === 'M')[1]; // the middle seat: you face all three
     // the paper pile sits on the shredder lid, in front of the slot
     this.stack = new THREE.Group();
     this.sheets = Array.from({ length: SHEETS }, (_, i) => {
@@ -115,10 +119,13 @@ export class Chores {
       if (p.length < 3 || p.some((s) => s.chore)) return false;
       const i = Math.floor(Math.random() * (p.length - 2));
       targets = p.slice(i, i + 3); // three in a row, so you water your way along
-    } else if (this.shredder && !this.shredder.chore && !this.shredder.fire) targets = [this.shredder];
+    } else {
+      const st = { shred: this.shredder, meeting: this.meeting, training: this.world.tv }[kind];
+      if (st && !st.chore && !st.fire) targets = [st];
+    }
     for (const st of targets) {
       const tag = emojiSprite(CHORES[kind].emoji, 0.4);
-      tag.position.set(st.x, kind === 'water' ? 1.95 : 1.55, st.z);
+      tag.position.set(st.x, CHORES[kind].tagY ?? (kind === 'water' ? 1.95 : 1.55), st.z);
       this.scene.add(tag);
       st.chore = { kind, t: 0, age: 0, tag };
       this.list.push(st);
@@ -133,7 +140,7 @@ export class Chores {
     if (c.t < CHORES[c.kind].time) return false;
     this.finish(st);
     if (c.kind === 'water') st.pop = 1;
-    else for (let i = 0; i < 30; i++) this.emitStrip(st, 1.6);
+    else if (c.kind === 'shred') for (let i = 0; i < 30; i++) this.emitStrip(st, 1.6);
     return true;
   }
 
@@ -208,6 +215,10 @@ export class Chores {
       this.shredder.model.position.x = shredding ? Math.sin(t * 70) * 0.006 : 0; // rattle
       if (shredding && Math.random() < dt * 45) this.emitStrip(this.shredder);
     } else if (this.shredder) this.shredder.model.position.x = 0;
+
+    // eAcademy: the wall TV swaps its security jokes for the deck, one slide every couple of seconds of watching
+    const tc = this.world.tv?.chore;
+    this.world.tv?.model.userData.show(tc ? Math.min(TRAINING_SLIDES.length - 1, Math.floor((tc.t / CHORES.training.time) * TRAINING_SLIDES.length)) : -1, t);
 
     for (const st of this.list) st.chore.tag.position.y += Math.sin(t * 4) * 0.002;
     this.drops.update(dt);

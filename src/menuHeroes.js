@@ -26,7 +26,8 @@ export class MenuHeroes {
       { suit: 0x3a3f47, skin: 0xf1c27d, hair: 0x2b1b0e, woman: true, x: 0.3, rot: 0.5 },
     ].map((o) => {
       const p = crossArms(makeSuitPerson(o));
-      p.position.x = o.x;
+      p.scale.setScalar(1.3);
+      p.position.x = o.x * 1.3;
       p.rotation.y = o.rot;
       p.userData.body.rotation.x = -0.06;
       p.userData.head.rotation.x = -0.15;

@@ -68,7 +68,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
   let spawn = { x: 0, z: 0 };
   let lift = null;
   let elevator = null;
-  let tvPlaced = false;
+  let tv = null; // the wall TV, as a face-able pseudo-station (see chores.js: eAcademy training)
   const posters = [
     ['ZERO\nTRUST\nZERO\nSLEEP', '#c0392b'],
     ['THINK\nBEFORE\nYOU\nCLICK', '#2c3e50'],
@@ -100,16 +100,17 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
           const w = M.box(cw, 2.2, depth, 0xf6f6f3);
           w.position.set(x + (cw - 1) / 2, 1.1, cz);
           scene.add(w);
-          if (r === 0 && !tvPlaced) {
+          if (r === 0 && !tv) {
             // wall TV on the white wall by the coffee machine
-            tvPlaced = true;
-            const tv = M.makeTV();
-            tv.scale.setScalar(1.6);
-            tv.position.set(x + (cw - 1) / 2, 1.5, cz + depth / 2 + 0.045);
-            scene.add(tv);
+            const model = M.makeTV();
+            model.scale.setScalar(1.6);
+            model.position.set(x + (cw - 1) / 2, 1.5, cz + depth / 2 + 0.045);
+            scene.add(model);
+            // not a real station (like the planters): the whole wall patch counts as facing it
+            tv = { key: 'tv', kind: 'tv', c, r, cw, x: model.position.x, z, model, slot: new THREE.Vector3(model.position.x, 0.75, z), chore: null };
           }
         }
-        grid[r].push({ solid: true });
+        grid[r].push(tv && r === tv.r && c < tv.c + tv.cw ? { solid: true, station: tv } : { solid: true });
         continue;
       }
       if (ch === 'g') {
@@ -370,6 +371,12 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
         npc.position.set(0, 0, -0.58);
       }
       group.add(npc);
+      if (key === 'M') {
+        // the meeting room regulars, named in map order (left to right seen from the south)
+        const tag = M.labelSprite(['Pat', 'Lorna', 'Shiv'][c - MAP[r].indexOf('M')] ?? '', 0.17, '#3a2050');
+        tag.position.set(0, 1.8, -0.58);
+        group.add(tag);
+      }
     }
     const boardroomMiddle = key === 'D' && (
       (charAt(c - 1, r) === 'D' && charAt(c + 1, r) === 'D') || (charAt(c, r - 1) === 'D' && charAt(c, r + 1) === 'D'));
@@ -409,7 +416,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
       const bg = def.kind === 'dispenser' ? '#1d2533' : def.kind === 'deliver' ? '#8a6d1d' : '#3a2050';
       // eye-level signage for first person: smaller, hung just above head height
       label = M.labelSprite(text, 0.17, bg);
-      const ly = key === 'D' ? 2.2 : 1.85;
+      const ly = key === 'D' ? 2.2 : key === 'M' ? 2.15 : 1.85; // M: clear of the name tags
       label.position.set(x, ly, z);
       scene.add(label);
     }
@@ -477,7 +484,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
   };
   const cell = (c, r) => (r >= 0 && r < H && c >= 0 && c < W ? grid[r][c] : { solid: true });
 
-  return { W, H, grid, stations, planters, spawn, lift, elevator, toWorld, tileAt, cell };
+  return { W, H, grid, stations, planters, tv, spawn, lift, elevator, toWorld, tileAt, cell };
 }
 
 // ---------------------------------------------------------------------------
