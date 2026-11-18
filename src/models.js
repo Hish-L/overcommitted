@@ -792,6 +792,35 @@ export function marbleTexture() {
 }
 
 // Wall-mounted TV running the obligatory security dashboard. Screen faces +z.
+// eAcademy "Timesheet Compliance Policy (Planview)": [headline, ...lines] per slide (see chores.js)
+export const TRAINING_SLIDES = [
+  ['Timesheets & You', 'A Planview compliance module.', 'Module 1 of 47.'],
+  ['Why Planview?', "If it isn't in Planview,", "it didn't happen."],
+  ['Due EVERY Friday', 'Yes, this Friday too.', 'Planview never forgets.'],
+  ['Log this training', 'In Planview. Then log the time', 'you spent logging it. In Planview.'],
+  ['Quiz: timesheets go in…', 'A) Planview     B) Planview', 'C) Planview     D) All of the above'],
+];
+
+// What the wall TV cycles through when nobody's using it: [headline, ...lines]
+export const TV_JOKES = [
+  ['CVSS 11.0', 'New zero-day scores 11 out of 10.', 'Vendor: "Working as intended."'],
+  ['Days since last incident: 0', 'Sign reset again this morning.', 'And once more after lunch.'],
+  ['New zero-day exploit', 'Has a name, a logo and merch.', 'Patch: to be announced.'],
+  ['Password policy update', 'Must now include a haiku,', 'a hieroglyph and a blood sample.'],
+  ['Phishing test results', '94% clicked the link.', 'The other 6% were on leave.'],
+  ['Zero Trust rollout', 'We now trust no one.', 'Especially not Dave.'],
+  ['Patch Tuesday', 'Followed, as always,', 'by Outage Wednesday.'],
+  ['AI-powered firewall', 'It blocked itself.', 'Marketing calls it "autonomous".'],
+  ['Critical vuln found', 'In the vulnerability scanner.', 'Scanning the scanner now.'],
+  ['MFA fatigue at 94%', 'Please stop approving prompts', "you didn't start."],
+  ['Risk accepted', 'By someone who has since', 'left the company.'],
+  ['Pen test complete', 'The password was "Password1".', 'Again.'],
+  ['The cloud is down', "It's just someone else's computer", 'having a bad day.'],
+  ['Compliance achieved', 'Security not included.', 'Batteries sold separately.'],
+  ['Risk appetite: "medium-ish"', 'Board asks if we are secure yet.', 'Answer: "It depends."'],
+];
+const TV_JOKE_EVERY = 7; // seconds per joke
+
 export function makeTV() {
   const g = new THREE.Group();
   const bezel = box(1.3, 0.76, 0.05, 0x0d0d0f);
@@ -800,41 +829,52 @@ export function makeTV() {
   c.width = 512;
   c.height = 288;
   const x = c.getContext('2d');
-  x.fillStyle = '#0e1726';
-  x.fillRect(0, 0, 512, 288);
-  x.fillStyle = '#7fa7d9';
-  x.font = 'bold 20px Helvetica, Arial, sans-serif';
-  x.fillText('SECURITY OPERATIONS DASHBOARD', 20, 34);
-  x.fillStyle = '#ffffff';
-  x.font = 'bold 22px Helvetica, Arial, sans-serif';
-  x.fillText('DAYS SINCE LAST INCIDENT', 20, 82);
-  x.fillStyle = '#ff4d4d';
-  x.font = 'bold 110px Helvetica, Arial, sans-serif';
-  x.fillText('0', 40, 196);
-  // alerts-per-hour bars, trending in the wrong direction
-  x.fillStyle = '#7fa7d9';
-  x.font = '14px Helvetica, Arial, sans-serif';
-  x.fillText('ALERTS / HOUR', 300, 82);
-  [30, 42, 38, 60, 75, 70, 96, 120].forEach((h, i) => {
-    x.fillStyle = i > 5 ? '#ff7a3d' : '#3d8bff';
-    x.fillRect(300 + i * 24, 220 - h, 16, h);
-  });
-  // risk gauge
-  x.fillStyle = '#ffffff';
-  x.font = 'bold 16px Helvetica, Arial, sans-serif';
-  x.fillText('RISK APPETITE:', 20, 250);
-  x.fillStyle = '#ffcc33';
-  x.fillText('"MEDIUM-ISH"', 152, 250);
-  x.fillStyle = '#1f2d44';
-  x.fillRect(0, 262, 512, 26);
-  x.fillStyle = '#9fb3cc';
-  x.font = '14px Helvetica, Arial, sans-serif';
-  x.fillText('PATCH TUESDAY IS COMING  •  MFA FATIGUE AT 94%  •  PLEASE STOP CLICKING LINKS', 12, 280);
+  const font = (px) => `bold ${px}px Helvetica, Arial, sans-serif`;
+  // one screen: coloured strip on top, big headline, a couple of lines, footer strip (text squeezes to fit)
+  const draw = ([head, ...lines], k) => {
+    x.fillStyle = k.bg;
+    x.fillRect(0, 0, 512, 288);
+    x.fillStyle = k.bar;
+    x.fillRect(0, 0, 512, 44);
+    x.fillStyle = '#ffffff';
+    x.font = font(18);
+    x.fillText(k.title, 14, 29, 484);
+    x.fillStyle = k.head;
+    x.font = font(36);
+    x.fillText(head, 20, 106, 472);
+    x.fillStyle = k.text;
+    x.font = font(22);
+    lines.forEach((l, n) => x.fillText(l, 20, 152 + n * 34, 472));
+    x.fillStyle = k.foot;
+    x.fillRect(0, 252, 512, 36);
+    x.fillStyle = k.footText;
+    x.font = font(14);
+    x.fillText(k.footer, 14, 275, 484);
+  };
+  const NEWS = { bg: '#0e1726', bar: '#b3261e', title: 'SECURITY OPERATIONS  •  LIVE', head: '#ffffff', text: '#9fc2ff', foot: '#1f2d44', footText: '#9fb3cc',
+    footer: 'PATCH TUESDAY IS COMING  •  MFA FATIGUE AT 94%  •  PLEASE STOP CLICKING LINKS' };
+  const DECK = { bg: '#ffffff', bar: '#5b2a86', title: 'eAcademy  •  MANDATORY TRAINING: OVERDUE', head: '#1d1d2b', text: '#3b3b4f', foot: '#ece6f3', footText: '#5b2a86' };
+  let joke = Math.floor(Math.random() * TV_JOKES.length);
+  draw(TV_JOKES[joke], NEWS);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.7), new THREE.MeshBasicMaterial({ map: tex }));
   screen.position.z = 0.026;
   g.add(screen);
+  // show(i, t): slide i of the training deck while it's being watched; otherwise (i < 0) a
+  // different random joke every TV_JOKE_EVERY seconds of clock time t
+  let showing = '';
+  g.userData.show = (i, t) => {
+    const key = i >= 0 ? `slide${i}` : `joke${Math.floor(t / TV_JOKE_EVERY)}`;
+    if (key === showing) return;
+    showing = key;
+    if (i >= 0) draw(TRAINING_SLIDES[i], { ...DECK, footer: `Slide ${i + 1} of ${TRAINING_SLIDES.length}  •  Timesheet Compliance Policy (Planview)  •  no skipping` });
+    else {
+      joke = (joke + 1 + Math.floor(Math.random() * (TV_JOKES.length - 1))) % TV_JOKES.length; // any but the last one
+      draw(TV_JOKES[joke], NEWS);
+    }
+    tex.needsUpdate = true;
+  };
   return g;
 }
 

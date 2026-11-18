@@ -227,7 +227,7 @@ function frame(now) {
   if (game.state !== 'menu') ui.render(game, game.state === 'playing' ? dt : 0);
   if (game.state === 'over') unlockPointer();
   renderer.render(scene, camera);
-  ui.renderLabels();
+  ui.renderLabels(game.labelsOn);
   if (game.state === 'menu') heroes.render(performance.now() / 1000);
   // held item on top of everything (its own scene, depth cleared)
   if ((game.held || game.chores.can.visible) && game.state !== 'menu') {

@@ -154,6 +154,7 @@ export const TUNING = {
   dashTime: 0.16,
   dashCooldown: 0.6,
   maxBacklog: 8,             // game over when backlog would exceed this
+  storyHold: 15,             // town hall: seconds a story ticket stays popped up mid-screen before it joins the queue
   startConfidence: 100,
   firstOrderDelay: 1.5,
   spawnStart: 28,            // seconds between new initiatives at start
