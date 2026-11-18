@@ -34,15 +34,17 @@ export class UI {
       let el = this.orderEls.get(o.id);
       if (!el) {
         el = document.createElement('div');
-        el.className = `ticket enter${o.from ? ' achievement' : ''}`;
+        el.className = `ticket${o.story ? '' : ' enter'}${o.from ? ' achievement' : ''}`;
         el.innerHTML = `
           <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span></div>
+          ${o.story ? `<div class="t-story">${o.story}</div>` : ''}
           <div class="t-name">${o.recipe.name}</div>
           <div class="t-needs">${o.recipe.needs.map((n) => `<span class="chip" data-n="${n}" title="${ITEMS[n].name}">${ITEMS[n].emoji}</span>`).join('')}</div>
           <div class="t-bar"><div></div></div>`;
         $('#orders').appendChild(el);
         this.orderEls.set(o.id, el);
-        requestAnimationFrame(() => el.classList.remove('enter'));
+        if (o.story) this.popTicket(el);
+        else requestAnimationFrame(() => el.classList.remove('enter'));
       }
       const p = Math.max(0, o.timeLeft / o.timeTotal);
       const bar = el.querySelector('.t-bar div');
@@ -112,6 +114,20 @@ export class UI {
     while ($('#toasts').children.length > 3) $('#toasts').lastChild.remove();
     setTimeout(() => el.classList.add('fade'), 4200);
     setTimeout(() => el.remove(), 4800);
+  }
+
+  // Town hall story: the ticket appears big in the middle of the screen with its
+  // story line, holds, then flies up to its slot in the ticket row.
+  popTicket(el) {
+    el.classList.add('pop');
+    const r = el.getBoundingClientRect();
+    const s = Math.min(2.2, (innerWidth * 0.8) / r.width, (innerHeight * 0.5) / r.height);
+    const to = `translate(${innerWidth / 2 - r.left - r.width / 2}px, ${innerHeight * 0.42 - r.top - r.height / 2}px)`;
+    el.style.transform = `${to} scale(${s * 0.6})`;
+    el.style.opacity = 0;
+    requestAnimationFrame(() => { el.style.transform = `${to} scale(${s})`; el.style.opacity = 1; });
+    setTimeout(() => { el.style.transform = ''; el.classList.add('dock'); }, 3600);
+    setTimeout(() => el.classList.remove('pop', 'dock'), 4400); // landed: story line folds away
   }
 
   banner(title, text, kind = 'bad') {

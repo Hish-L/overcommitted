@@ -127,11 +127,13 @@ export const RECIPES = [
 // TOWN HALL DEMO: the division's real achievements, delivered in this order.
 // Add a line per achievement. `from` is who hands it over:
 //   K AI Vendor · X Pentest Team · L SOC · T Sec Architect · H IT Helpdesk
+// `story` is the line told in the big pop-up before the ticket flies up to the
+// top of the screen (leave it out for a plain ticket).
 // ---------------------------------------------------------------------------
 export const TOWNHALL_TICKETS = [
-  { name: 'Build the Hydra Scanner',         from: 'K' },
-  { name: 'Clear the vulnerability mountain', from: 'L' },
-  { name: 'Deliver 250 pentest engagements', from: 'X' },
+  { name: 'Build the Hydra Scanner',         from: 'K', story: 'AI is here. It\'s time you build a code scanner.' },
+  { name: 'Clear the vulnerability mountain', from: 'L', story: 'The exceptions are piling up. Someone has to chase every exception.' },
+  { name: 'Deliver 250 pentest engagements', from: 'X', story: 'The business keeps shipping. Every launch needs a pentest first.' },
 ];
 
 export const REQUESTERS = [
@@ -166,6 +168,7 @@ export const TUNING = {
   fireDrain: 2.0,            // confidence/sec per burning rack
   fireSpreadTime: 12,        // seconds until an unattended fire spreads
   extinguishTime: 1.4,
+  choreDrain: 0.25,          // confidence/sec per unwatered planter / unshredded paper pile
   tierUnlock: [0, 60, 150],  // seconds into the game each tier unlocks
   chaosStart: 90,
   chaosEvery: [35, 55],

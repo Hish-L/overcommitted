@@ -37,9 +37,11 @@ export class MenuHeroes {
 
   render(t) {
     const { canvas, renderer, camera } = this;
-    const w = canvas.clientWidth, h = canvas.clientHeight;
+    // on-screen size in device pixels (clientWidth ignores the xlarge-screen CSS zoom and retina)
+    const r = canvas.getBoundingClientRect();
+    const w = Math.round(r.width * devicePixelRatio), h = Math.round(r.height * devicePixelRatio);
     if (!w || !h) return;
-    if (canvas.width !== Math.floor(w * renderer.getPixelRatio())) {
+    if (canvas.width !== w || canvas.height !== h) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();

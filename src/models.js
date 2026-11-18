@@ -700,7 +700,10 @@ export function makePlanterSegment() {
     g.add(b);
     for (let i = 0; i < 5; i++) {
       const r = 0.1 + Math.random() * 0.07;
-      const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat(greens[(Math.random() * greens.length) | 0]));
+      // own material per leaf: chores.js browns them when the plants dry out
+      const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), mat(greens[(Math.random() * greens.length) | 0]).clone());
+      leaf.userData.green = leaf.material.color.clone();
+      (g.userData.leaves ??= []).push(leaf);
       leaf.position.set(-0.4 + i * 0.2 + (Math.random() - 0.5) * 0.08, t.y + t.h + r * 0.6, (Math.random() - 0.5) * 0.06);
       leaf.rotation.set(Math.random() * 3, Math.random() * 3, 0);
       leaf.castShadow = true;
