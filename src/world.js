@@ -63,6 +63,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
   // --- walls & stations ----------------------------------------------------
   const wallHeight = () => 1.1;
   const stations = [];
+  const planters = []; // planter segments you can water (see chores.js)
   const grid = [];
   let spawn = { x: 0, z: 0 };
   let lift = null;
@@ -144,12 +145,15 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
         p.position.set(x, 0, z + 0.4 - M.PLANTER_DEPTH / 2);
         p.rotation.y = Math.PI;
         scene.add(p);
+        // not a real station (nothing to grab or place), but you can face it to water it
+        const planter = { key: 'p', kind: 'planter', c, r, x, z, model: p, slot: new THREE.Vector3(x, 0.4, z), chore: null };
+        planters.push(planter);
         if (r === H - 1) {
           const win = M.makeWindowWall();
           win.position.set(x, 0, z + 0.4);
           scene.add(win);
         }
-        grid[r].push({ solid: true });
+        grid[r].push({ solid: true, station: planter });
         continue;
       }
       if (ch === '#') {
@@ -473,7 +477,7 @@ export function buildWorld(scene, { shadowSize = 2048 } = {}) {
   };
   const cell = (c, r) => (r >= 0 && r < H && c >= 0 && c < W ? grid[r][c] : { solid: true });
 
-  return { W, H, grid, stations, spawn, lift, elevator, toWorld, tileAt, cell };
+  return { W, H, grid, stations, planters, spawn, lift, elevator, toWorld, tileAt, cell };
 }
 
 // ---------------------------------------------------------------------------

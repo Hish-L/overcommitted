@@ -37,6 +37,7 @@ export const sfx = {
   email: () => { tone(880, 0.08, 'sine', 0.08); tone(1320, 0.12, 'sine', 0.06, 0.09); },
   overdue: () => { tone(300, 0.2, 'sawtooth', 0.06); tone(220, 0.3, 'sawtooth', 0.06, 0.2); },
   alarm: () => { for (let i = 0; i < 4; i++) tone(i % 2 ? 600 : 800, 0.15, 'square', 0.05, i * 0.16); },
+  drip: () => tone(1200 + Math.random() * 600, 0.04, 'sine', 0.025, 0, -400),
   shred: () => tone(120, 0.3, 'sawtooth', 0.05, 0, 60),
   ruin: () => tone(400, 0.4, 'sine', 0.06, 0, -300),
   dash: () => tone(250, 0.08, 'sine', 0.04, 0, 300),

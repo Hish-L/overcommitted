@@ -5,6 +5,7 @@ import { ITEMS, PROCESS, RECIPES, REQUESTERS, STATIONS, TOWNHALL_TICKETS, TUNING
 import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, tickMatrix, labelSprite } from './models.js';
 import { HotDesk } from './hotdesk.js';
 import { makeFire, animateFire } from './world.js';
+import { Chores, CHORES } from './chores.js';
 import { sfx } from './audio.js';
 import { device, keyHint } from './device.js';
 
@@ -116,6 +117,7 @@ export class Game {
     vSun.position.set(1, 2, 1.5);
     vScene.add(vSun);
     this.view = { scene: vScene, camera: new THREE.PerspectiveCamera(55, 1, 0.01, 10) };
+    this.chores = new Chores(scene, camera, world, vScene);
 
     const hl = new THREE.Mesh(
       new THREE.PlaneGeometry(0.98, 0.98),
@@ -149,6 +151,7 @@ export class Game {
       this.setFire(st, false);
       if (st.initialItem) this.placeOn(st, new Item(st.initialItem, this.scene));
     }
+    this.chores.reset();
     this.held?.dispose();
     this.held = null;
     this.hotdesk.reset();
@@ -179,7 +182,8 @@ export class Game {
     this.townhall = this.mode === 'townhall';
     this.achieved = [];
     this.overload = false; // town hall finale: same simple rules, requests pile up until the backlog bursts
-    this.chaosIn = this.townhall ? 20 : TUNING.chaosStart;
+    this.chaosIn = this.townhall ? 12 : TUNING.chaosStart;
+    this.chaosN = 0; // town hall takes its interruptions in turn, so the story shows all of them
     this.slowT = 0;
     this.shake = 0;
     this.lastRecipe = null;
@@ -586,6 +590,11 @@ export class Game {
       sfx.wrong();
       return;
     }
+    if (st.chore) {
+      this.ui.float(st.slot, `${CHORES[st.chore.kind].emoji} ${this.townhall ? holdHint() : `Hold ${keyHint('work')}`} to ${CHORES[st.chore.kind].verb}`, 'info');
+      return;
+    }
+    if (st.kind === 'planter') return;
     const held = this.held;
 
     if (this.townhall) {
@@ -718,6 +727,16 @@ export class Game {
       }
       return;
     }
+    if (st.chore) {
+      const { kind } = st.chore;
+      this.working = true;
+      if (Math.random() < dt * (kind === 'shred' ? 6 : 12)) kind === 'shred' ? sfx.shred() : sfx.drip();
+      if (this.chores.work(st, dt)) {
+        sfx.done();
+        this.ui.float(st.slot, CHORES[kind].done, 'good');
+      }
+      return;
+    }
     if (st.kind !== 'workstation' || !st.item) return;
     const result = PROCESS.workstation[st.item.type];
     if (!result) return;
@@ -740,6 +759,7 @@ export class Game {
     if (this.townhall) {
       // one button does everything: it just names what it will do right now
       if (st?.fire) [icon, label] = ['🧯', 'Hold'];
+      else if (st?.chore) [icon, label] = [CHORES[st.chore.kind].emoji, 'Hold'];
       else if (held && st?.kind === 'deliver') [icon, label] = ['📁', 'Deliver'];
       else if (!held && this.wanted(st)) [icon, label] = ['✋', 'Grab'];
     } else if (st && !st.takenBy) {
@@ -759,13 +779,13 @@ export class Game {
     }
     const workable = st && !st.takenBy && (st.fire
       ? held?.type === 'playbook' || this.mode === 'townhall'
-      : st.kind === 'workstation' && st.item && PROCESS.workstation[st.item.type]);
+      : st.chore ? true : st.kind === 'workstation' && st.item && PROCESS.workstation[st.item.type]);
     return {
       icon: icon ?? '✋',
       label: icon ? label : held ? 'Place' : 'Grab',
       can: !!icon,
       canWork: !!workable,
-      workProgress: workable ? clamp(st.fire ? st.extT / TUNING.extinguishTime : st.progress, 0, 1) : 0,
+      workProgress: workable ? clamp(st.fire ? st.extT / TUNING.extinguishTime : st.chore ? st.chore.t / CHORES[st.chore.kind].time : st.progress, 0, 1) : 0,
       dashCooldown: clamp(this.dashCd / TUNING.dashCooldown, 0, 1),
     };
   }
@@ -785,6 +805,10 @@ export class Game {
       // a fire interrupts everything until it's out
       if (st?.fire) return say('🔥', `${holdHint()} to put out the fire`);
       if (this.world.stations.some((s) => s.fire)) return say('🔥', 'Fire! Walk to the red beam');
+      // so does a chore, more politely
+      const chore = CHORES[(st?.chore ?? this.chores.list[0]?.chore)?.kind];
+      if (st?.chore) return say(chore.emoji, `${holdHint()} to ${chore.verb}`);
+      if (chore) return say(chore.emoji, `${chore.call} Walk to the blue beam`);
       if (!o) return say('⏳', 'Get ready...');
       if (h) return st?.kind === 'deliver' ? say('🏛️', `${pressHint()} to deliver`) : say('👉', 'Carry it to the green beam');
       return this.wanted(st) ? say('✋', `${pressHint()} to grab it`) : say('👉', 'Walk to the green beam');
@@ -808,6 +832,9 @@ export class Game {
   // -------------------------------------------------------------------------
   updateStations(dt) {
     this.hudBar = null; // progress of the station you're facing, drawn in the HUD (ui.js)
+    this.confidence -= TUNING.choreDrain * this.chores.list.length * dt;
+    const chore = this.target?.chore;
+    if (chore?.t > 0) this.hudBar = { p: chore.t / CHORES[chore.kind].time, color: CHORES[chore.kind].color };
     for (const st of this.world.stations) {
       let bar = null;
 
@@ -902,7 +929,7 @@ export class Game {
   spreadFire(st) {
     const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]]
       .map(([dc, dr]) => this.world.cell(st.c + dc, st.r + dr)?.station)
-      .filter((s) => s && !s.fire && s.kind !== 'deliver');
+      .filter((s) => s && !s.fire && s.kind !== 'deliver' && s.kind !== 'planter');
     if (!neighbors.length) return;
     const n = pick(neighbors);
     this.setFire(n, true);
@@ -942,9 +969,9 @@ export class Game {
   // Town hall demo: one achievement ticket at a time, in list order. The timer
   // is for drama only: running late costs nothing.
   updateAchievements(dt) {
-    const add = (name, from, time, extra) => {
+    const add = (name, from, time, extra, story) => {
       this.orders.push({
-        id: this.nextOrderId++, recipe: { name, needs: [] }, from, extra,
+        id: this.nextOrderId++, recipe: { name, needs: [] }, from, extra, story,
         timeTotal: time, timeLeft: time, overdue: false, urgent: false, born: this.time,
       });
       sfx.email();
@@ -960,7 +987,7 @@ export class Game {
       }
     } else if (!this.orders.length && this.spawnIn <= 0) {
       const t = TOWNHALL_TICKETS[this.achieved.length];
-      add(t.name, t.from, 90, false);
+      add(t.name, t.from, 90, false, t.story);
     }
     for (const o of this.orders) {
       o.timeLeft -= dt;
@@ -986,7 +1013,7 @@ export class Game {
     sfx.deliver();
     if (o.extra) return this.ui.float(st.slot, '✅ Delivered!', 'good');
     this.achieved.push(o.recipe.name);
-    this.spawnIn = 1.5;
+    this.spawnIn = 4; // let the "Delivered!" banner clear before the next story pops up
     this.ui.banner(`🏆 ${o.recipe.name}`, `Delivered! ${this.achieved.length} of ${TOWNHALL_TICKETS.length}`, 'good');
     if (st.npc) this.npcSay(st, 'Outstanding work.');
     if (this.achieved.length < TOWNHALL_TICKETS.length) return;
@@ -1002,8 +1029,9 @@ export class Game {
   updateBeacon() {
     const o = this.townhall && this.orders[0];
     const fire = this.townhall && this.world.stations.find((s) => s.fire);
-    const st = fire || (o && this.world.stations.find((s) => (this.held ? s.kind === 'deliver' : s.dispense?.item === STATIONS[o.from].item)));
-    this.beacon.material.color.setHex(fire ? 0xff3322 : 0x44ff88);
+    const chore = this.townhall && !fire && this.chores.list[0];
+    const st = fire || chore || (o && this.world.stations.find((s) => (this.held ? s.kind === 'deliver' : s.dispense?.item === STATIONS[o.from].item)));
+    this.beacon.material.color.setHex(fire ? 0xff3322 : chore ? 0x44aaff : 0x44ff88);
     this.beacon.visible = !!st;
     if (!st) return;
     this.beacon.position.set(st.x, 2, st.z);
@@ -1074,15 +1102,16 @@ export class Game {
     }
     this.chaosIn -= dt;
     if (this.chaosIn > 0) return;
-    const [a, b] = this.overload ? [8, 12] : this.townhall ? [25, 35] : TUNING.chaosEvery;
+    const [a, b] = this.overload ? [8, 12] : this.townhall ? [16, 22] : TUNING.chaosEvery;
     this.chaosIn = a + Math.random() * (b - a);
-    const events = this.townhall ? ['incident'] : ['incident', 'replyall', 'audit'];
+    const events = ['incident', 'replyall', 'audit', 'plants', 'papers'];
     if (this.townhall && this.world.stations.filter((s) => s.fire).length >= 2) return; // drama, not an inferno
-    this.triggerChaos(pick(events));
+    if (this.townhall && this.chores.list.length) return; // one interruption story at a time
+    this.triggerChaos(this.townhall ? ['plants', 'papers', 'incident'][this.chaosN++ % 3] : pick(events));
   }
 
-  triggerChaos(kind) {
-    switch (kind) {
+  triggerChaos(kind0) {
+    switch (kind0) {
       case 'incident': {
         let options = this.world.stations.filter((s) => s.key === 'S' && !s.fire);
         if (!options.length) options = this.world.stations.filter((s) => s.key === 'W' && !s.fire && !s.takenBy);
@@ -1093,6 +1122,16 @@ export class Game {
         if (this.mode === 'townhall') this.ui.banner('🔥 FIRE!', `Walk up to it and ${holdHint().replace('Hold', 'hold')}`, 'bad');
         else this.ui.banner('🔥 PRODUCTION INCIDENT!', `Someone deployed on a Friday. Grab the 🧯 Playbook and ${keyHint('work')} on the fire!`, 'bad');
         sfx.alarm();
+        break;
+      }
+      case 'plants':
+      case 'papers': {
+        const kind = kind0 === 'plants' ? 'water' : 'shred';
+        if (!this.chores.start(kind)) return;
+        const how = `Walk up and ${(this.townhall ? holdHint() : `hold ${keyHint('work')}`).replace('Hold', 'hold')}`;
+        if (kind === 'water') this.ui.banner('🥀 THE PLANTS ARE WILTING!', `Nobody watered them since the reorg. ${how} to water each one.`, 'warn');
+        else this.ui.banner('📄 CONFIDENTIAL PAPERS!', `Someone left the board pack on the shredder. ${how} to shred it.`, 'warn');
+        sfx.email();
         break;
       }
       case 'replyall': {
@@ -1167,6 +1206,7 @@ export class Game {
       if (st.fireFx) animateFire(st.fireFx, t);
       if (st.item) st.item.inner.userData.icon.position.y = 0.42 + Math.sin(t * 3 + st.c) * 0.03;
     }
+    this.chores.update(dt, t, this.state === 'playing' && this.working && this.target?.chore ? this.target : null);
     // camera: gentle follow + shake
     const cam = this.camera;
     // wide lens + close near plane in first person, long lens for the menu flyover

@@ -33,6 +33,7 @@ const world = buildWorld(scene, { shadowSize: mobile ? 1024 : 2048 });
 const city = buildCity(scene, MAP[0].length, MAP.length);
 const ui = new UI(camera);
 const game = new Game({ scene, world, ui, camera });
+if (import.meta.env.DEV) window.game = game; // dev console handle, e.g. game.triggerChaos('plants')
 const heroes = new MenuHeroes(document.getElementById('menu-heroes'));
 
 function resize() {
@@ -229,7 +230,7 @@ function frame(now) {
   ui.renderLabels();
   if (game.state === 'menu') heroes.render(performance.now() / 1000);
   // held item on top of everything (its own scene, depth cleared)
-  if (game.held && game.state !== 'menu') {
+  if ((game.held || game.chores.can.visible) && game.state !== 'menu') {
     renderer.autoClear = false;
     renderer.clearDepth();
     renderer.render(game.view.scene, game.view.camera);
