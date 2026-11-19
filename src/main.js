@@ -237,6 +237,13 @@ function frame(now) {
     renderer.autoClear = true;
   }
   pressed.clear();
+  const loading = $('#loading');
+  if (loading) { // first frame is on screen: fade the loading cover out
+    loading.style.opacity = 0;
+    loading.style.pointerEvents = 'none';
+    setTimeout(() => loading.remove(), 300);
+    loading.id = '';
+  }
 }
 requestAnimationFrame(frame);
 

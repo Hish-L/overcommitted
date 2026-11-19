@@ -83,6 +83,7 @@ export class UI {
       $('#work-bar div').style.background = `#${bar.color.toString(16).padStart(6, '0')}`;
     }
     document.body.classList.toggle('townhall', game.mode === 'townhall');
+    document.body.classList.toggle('tv-view', game.tvView > 0.5); // watching the eAcademy TV up close
     // full controls for the first stretch, then just the essentials
     $('#controls').classList.toggle('mini', game.time > CONTROLS_FULL_FOR);
 
@@ -130,6 +131,15 @@ export class UI {
     requestAnimationFrame(() => { el.style.transform = `${to} scale(${s})`; el.style.opacity = 1; });
     setTimeout(() => { el.style.transform = ''; el.classList.add('dock'); }, TUNING.storyHold * 1000);
     setTimeout(() => el.classList.remove('pop', 'dock'), TUNING.storyHold * 1000 + 800); // landed (keeps its story line)
+  }
+
+  // town hall: thumbs-up guy slides in bottom right with a comment
+  thumbsUp(text, ms = 4500) {
+    const el = $('#thumbs');
+    el.querySelector('.say').textContent = text;
+    el.classList.add('show');
+    clearTimeout(this.thumbsT);
+    this.thumbsT = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   banner(title, text, kind = 'bad', ms = 3800) {
@@ -250,7 +260,7 @@ export class UI {
     $('#go-review-text').textContent = review.text;
     const th = game.mode === 'townhall';
     $('#gameover').classList.toggle('townhall', th);
-    $('#go-stats').innerHTML = th ? game.achieved.map((n) => `<div><span>🏆 ${n}</span><b>✅</b></div>`).join('') : [
+    $('#go-stats').innerHTML = th ? game.achieved.map((n) => `<div><span><i class="trophy">🏆</i>${n}</span><b>✅</b></div>`).join('') : [
       ['Initiatives requested', s.requested],
       ['Initiatives delivered', `${s.delivered} (${pct}%)`],
       ['Delivered late', s.lateDelivered],
@@ -267,6 +277,40 @@ export class UI {
     localStorage.setItem('overcommitted-best', best);
     $('#go-best').textContent = `Best shareholder value: $${best}M`;
     this.show('#gameover', true);
+    if (th) this.fireworks();
+  }
+
+  // town hall finale: fireworks behind the achievements card until the screen closes
+  fireworks() {
+    const cv = $('#fireworks'), x = cv.getContext('2d'), sparks = [];
+    let next = 0;
+    const frame = (t) => {
+      if ($('#gameover').classList.contains('hidden')) return x.clearRect(0, 0, cv.width, cv.height);
+      if (cv.width !== innerWidth || cv.height !== innerHeight) [cv.width, cv.height] = [innerWidth, innerHeight];
+      if (t > next) { // a new burst every ~0.4s
+        next = t + 250 + Math.random() * 350;
+        const bx = cv.width * (0.1 + Math.random() * 0.8), by = cv.height * (0.1 + Math.random() * 0.45);
+        const hue = Math.random() * 360;
+        for (let i = 0; i < 70; i++) {
+          const a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 4;
+          sparks.push({ x: bx, y: by, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, hue: hue + Math.random() * 40 });
+        }
+      }
+      // fade old trails without painting over the backdrop
+      x.globalCompositeOperation = 'destination-out';
+      x.fillStyle = 'rgba(0,0,0,.18)';
+      x.fillRect(0, 0, cv.width, cv.height);
+      x.globalCompositeOperation = 'lighter';
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const p = sparks[i];
+        p.vy += 0.06; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx; p.y += p.vy; p.life -= 0.012;
+        if (p.life <= 0) { sparks.splice(i, 1); continue; }
+        x.fillStyle = `hsla(${p.hue},100%,62%,${p.life})`;
+        x.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
   }
 
   // A cheat-sheet of how every deliverable is made.

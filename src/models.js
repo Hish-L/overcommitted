@@ -864,12 +864,19 @@ export function makeTV() {
   // show(i, t): slide i of the training deck while it's being watched; otherwise (i < 0) a
   // different random joke every TV_JOKE_EVERY seconds of clock time t
   let showing = '';
-  g.userData.show = (i, t) => {
-    const key = i >= 0 ? `slide${i}` : `joke${Math.floor(t / TV_JOKE_EVERY)}`;
+  // p (0-1): training progress, drawn as a bar along the top of the footer
+  g.userData.show = (i, t, p = 0) => {
+    const step = Math.round(p * 120);
+    const key = i >= 0 ? `slide${i}-${step}` : `joke${Math.floor(t / TV_JOKE_EVERY)}`;
     if (key === showing) return;
     showing = key;
-    if (i >= 0) draw(TRAINING_SLIDES[i], { ...DECK, footer: `Slide ${i + 1} of ${TRAINING_SLIDES.length}  •  Timesheet Compliance Policy (Planview)  •  no skipping` });
-    else {
+    if (i >= 0) {
+      draw(TRAINING_SLIDES[i], { ...DECK, footer: `Slide ${i + 1} of ${TRAINING_SLIDES.length}  •  Timesheet Compliance Policy (Planview)  •  no skipping` });
+      x.fillStyle = '#d6cbe3';
+      x.fillRect(0, 246, 512, 8);
+      x.fillStyle = '#9b6bd6';
+      x.fillRect(0, 246, 512 * (step / 120), 8);
+    } else {
       joke = (joke + 1 + Math.floor(Math.random() * (TV_JOKES.length - 1))) % TV_JOKES.length; // any but the last one
       draw(TV_JOKES[joke], NEWS);
     }

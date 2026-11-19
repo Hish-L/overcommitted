@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { ITEMS, PROCESS, RECIPES, REQUESTERS, STATIONS, TOWNHALL_TICKETS, TUNING } from './data.js';
 import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, tickMatrix, labelSprite } from './models.js';
 import { HotDesk } from './hotdesk.js';
+import { Phil } from './phil.js';
 import { makeFire, animateFire } from './world.js';
 import { Chores, CHORES } from './chores.js';
 import { sfx } from './audio.js';
@@ -29,10 +30,25 @@ const MEETING_LINES = ["Let's take this offline.", 'Can everyone see my screen?'
 const TURN_SPEED = 2.6; // rad/s for arrow-key turning
 const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(); // camera scratch
 const MAX_PITCH = 10 * Math.PI / 180; // look up/down limit
 
 const STATION_FOR = {};
 for (const [proc, map] of Object.entries(PROCESS)) for (const raw of Object.keys(map)) STATION_FOR[raw] = proc;
+// town hall demo: what the thumbs-up guy says after each delivered achievement
+const THUMBS_UP = [
+  "Outstanding. I'll mention it in my next all-staff email.",
+  'Love it. Let\'s circle back and make it twice as big.',
+  "Great work! I'll be taking full credit at the exec offsite.",
+  'Nailed it. Now, about the budget for next year...',
+  'This is exactly what I meant. Probably.',
+  "Brilliant! Can we get this on a slide by 3pm?",
+  "Superb. You've earned a 10 minute break. Use 5.",
+  'Fantastic. Let\'s socialise this with the stakeholders.',
+  'Chef\'s kiss. Put it in the newsletter.',
+  'Yes! That\'s the synergy I keep talking about.',
+];
+
 // town hall demo: on a keyboard, Space does everything
 const holdHint = () => (device.pad ? `Hold ${device.padA}` : device.touch ? 'Hold the button' : 'Hold SPACE');
 const pressHint = () => (device.pad ? `Press ${device.padA}` : device.touch ? 'Tap the button' : 'Press SPACE');
@@ -140,6 +156,7 @@ export class Game {
     scene.add(this.beacon);
 
     this.hotdesk = new HotDesk(this);
+    this.phil = new Phil(this);
     this.state = 'menu';
     this.reset();
   }
@@ -158,6 +175,7 @@ export class Game {
     this.held?.dispose();
     this.held = null;
     this.hotdesk.reset();
+    this.phil.reset();
 
     if (this.world.elevator) this.world.elevator.car.position.y = RIDE_FROM; // parked down the shaft until Check In
     const p = this.player;
@@ -176,7 +194,7 @@ export class Game {
     this.time = 0;
     this.orders = [];
     this.nextOrderId = 1;
-    this.spawnIn = TUNING.firstOrderDelay;
+    this.spawnIn = this.mode === 'townhall' ? TUNING.townhallWarmup[0] : TUNING.firstOrderDelay;
     this.spawnInterval = TUNING.spawnStart;
     this.confidence = TUNING.startConfidence;
     this.score = 0;
@@ -317,6 +335,7 @@ export class Game {
     this.updatePlayer(dt, input);
     this.updateStations(dt);
     if (!this.townhall) this.hotdesk.update(dt);
+    this.phil.update(dt);
     this.updateOrders(dt);
     this.updateChaos(dt);
     this.updateBeacon();
@@ -1004,16 +1023,21 @@ export class Game {
         this.spawnInterval = Math.max(1.5, this.spawnInterval * 0.9);
         this.spawnIn = this.spawnInterval;
       }
-    } else if (!this.orders.length && this.spawnIn <= 0) {
+    } else if (!this.orders.length && this.spawnIn <= 0 && !this.distracted()) { // don't pop the next story over a distraction
       const t = TOWNHALL_TICKETS[this.achieved.length];
       add(t.name, t.from, 90, false, t.story); // story tickets have no clock (the time is never counted down)
-      this.chaosIn = 3; // its one interruption comes this long after the pop-up docks
+      this.chaosIn = TUNING.townhallWarmup[1][this.achieved.length] ?? 3; // its one interruption comes this long after the pop-up docks
     }
     for (const o of this.orders) {
       if (o.story) continue;
       o.timeLeft -= dt;
       if (o.timeLeft <= 0) o.overdue = true;
     }
+  }
+
+  // town hall: player is mid-distraction (chore, outage or fire), so hold the next pop-up/interruption
+  distracted() {
+    return this.chores.list.length > 0 || this.outageT > 0 || this.world.stations.some((s) => s.fire);
   }
 
   // town hall: does any open ticket need what this desk hands out?
@@ -1031,8 +1055,9 @@ export class Game {
     this.achieved.push(o.recipe.name);
     o.done = true;
     this.done.push(o);
-    this.spawnIn = 4; // let the "Delivered!" banner clear before the next story pops up
+    this.spawnIn = TUNING.townhallWarmup[2]; // let the "Delivered!" banner clear and the player breathe before the next story
     this.ui.banner(`🏆 ${o.recipe.name}`, `Delivered! ${this.achieved.length} of ${TOWNHALL_TICKETS.length}`, 'good');
+    this.ui.thumbsUp(pick(THUMBS_UP));
     if (st.npc) this.npcSay(st, 'Outstanding work.');
     if (this.achieved.length < TOWNHALL_TICKETS.length) return;
     // all done: same simple rules, but now the requests never stop
@@ -1050,7 +1075,7 @@ export class Game {
     const chore = this.townhall && !fire && this.chores.list[0];
     const st = fire || chore || (o && this.world.stations.find((s) => (this.held ? s.kind === 'deliver' : s.dispense?.item === STATIONS[o.from].item)));
     this.beacon.material.color.setHex(fire ? 0xff3322 : chore ? 0x44aaff : 0x44ff88);
-    this.beacon.visible = !!st;
+    this.beacon.visible = !!st && !this.tvView; // not across the TV while the training is up close
     if (!st) return;
     this.beacon.position.set(st.x, 2, st.z);
     this.beacon.material.opacity = 0.35 + Math.sin(this.time * 6) * 0.15;
@@ -1133,10 +1158,11 @@ export class Game {
     if (this.chaosIn > 0) return;
     const [a, b] = this.overload ? [8, 12] : story ? [2, 2] : TUNING.chaosEvery; // story: retry soon if it had to wait
     this.chaosIn = a + Math.random() * (b - a);
-    const events = ['incident', 'replyall', 'audit', 'plants', 'papers'];
-    if (this.townhall && this.world.stations.filter((s) => s.fire).length >= 2) return; // drama, not an inferno
-    if (this.townhall && this.chores.list.length) return; // one interruption story at a time
-    this.triggerChaos(this.townhall ? (story ? ['meeting', 'training', 'outage'] : ['plants', 'papers', 'incident'])[this.chaosN++ % 3] : pick(events));
+    const noPlants = (l) => (TUNING.plantsEvent ? l : l.filter((e) => e !== 'plants'));
+    const events = noPlants(['incident', 'replyall', 'audit', 'plants', 'papers']);
+    if (this.townhall && this.distracted()) return; // one interruption story at a time
+    const list = story ? ['meeting', 'training', 'outage'] : noPlants(['plants', 'papers', 'incident']);
+    this.triggerChaos(this.townhall ? list[this.chaosN++ % list.length] : pick(events));
     if (ticket) ticket.distracted = true;
   }
 
@@ -1175,7 +1201,7 @@ export class Game {
       }
       case 'outage': {
         this.outageT = OUTAGE_TIME;
-        this.ui.banner('📧 MICROSOFT OUTLOOK IS DOWN', "You can't move or do anything until it's back. Nobody can. Have you tried turning it off and on again?", 'bad', OUTAGE_TIME * 1000);
+        this.ui.banner('📧 MICROSOFT 364 IS DOWN', "You can't move or do anything until it's back. Nobody can. Have you tried turning it off and on again?", 'bad', OUTAGE_TIME * 1000);
         sfx.alarm();
         break;
       }
@@ -1299,6 +1325,18 @@ export class Game {
     const bob = Math.abs(Math.sin(this.walkT)) * 0.05 * this.wobble;
     cam.position.set(p.x, p.y + EYE_HEIGHT + bob, p.z);
     cam.rotation.set(this.pitch, this.yaw + Math.PI, 0, 'YXZ');
+    // eAcademy training: glide to a square-on view of the wall TV while it's being watched
+    const tv = this.world.tv;
+    const watching = this.state === 'playing' && this.working && this.target === tv && tv?.chore?.kind === 'training';
+    this.tvView = clamp((this.tvView ?? 0) + (watching ? dt : -dt) * 2.5, 0, 1);
+    if (tv && this.tvView > 0) {
+      const k = ease(this.tvView), tan = Math.tan(THREE.MathUtils.degToRad(fov / 2));
+      const d = Math.max(1.05 / tan, 1.55 / (tan * cam.aspect)); // 2.1 x 1.2 screen fits under the ticket row / above the controls
+      const c = tv.model.position;
+      cam.position.lerp(_v.set(c.x, c.y, c.z + d), k);
+      cam.quaternion.slerp(_q.setFromEuler(_e.set(0, 0, 0)), k); // straight at the wall (-z)
+      return;
+    }
     if (this.shake > 0) {
       this.shake -= dt;
       cam.rotation.x += (Math.random() - 0.5) * this.shake * 0.08;

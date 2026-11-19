@@ -154,9 +154,12 @@ export const TUNING = {
   dashTime: 0.16,
   dashCooldown: 0.6,
   maxBacklog: 8,             // game over when backlog would exceed this
-  storyHold: 15,             // town hall: seconds a story ticket stays popped up mid-screen before it joins the queue
+  storyHold: 7,              // town hall: seconds a story ticket stays popped up mid-screen before it joins the queue
   startConfidence: 100,
   firstOrderDelay: 1.5,
+  // town hall warm-up: [secs before the first story, secs after each story docks before its
+  // interruption (calm first, then quicker), secs of quiet between stories]
+  townhallWarmup: [6, [15, 8, 4], 7],
   spawnStart: 28,            // seconds between new initiatives at start
   spawnMin: 7,               // ...and it only gets worse
   spawnDecay: 0.92,          // multiplier per spawned initiative
@@ -169,6 +172,7 @@ export const TUNING = {
   fireDrain: 2.0,            // confidence/sec per burning rack
   fireSpreadTime: 12,        // seconds until an unattended fire spreads
   extinguishTime: 1.4,
+  plantsEvent: false,        // plant-watering distraction on/off
   choreDrain: 0.25,          // confidence/sec per unwatered planter / unshredded paper pile
   tierUnlock: [0, 60, 150],  // seconds into the game each tier unlocks
   chaosStart: 90,

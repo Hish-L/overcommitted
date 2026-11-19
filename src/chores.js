@@ -10,7 +10,7 @@ export const CHORES = {
   shred: { emoji: '📄', time: 2.6, verb: 'shred the papers', call: 'Papers to shred!', done: '✂️ Shredded. Nothing to see here.', color: 0xffe08a },
   // the long ones: face the meeting room / the wall TV and hold for the whole thing
   meeting: { emoji: '🗣️', time: 10, verb: 'sit through the meeting', call: 'Needless meeting!', done: '🗣️ "Great meeting. Let\'s book a follow-up."', color: 0xc9a0ff, tagY: 2.45 },
-  training: { emoji: '🎓', time: 10, verb: 'watch the Planview training', call: 'Mandatory training overdue!', done: '🎓 Certified. Now go fill in your Planview timesheet.', color: 0x9b6bd6, tagY: 2.3 },
+  training: { emoji: '🎓', time: 20, verb: 'watch the Planview training', call: 'Mandatory training overdue!', done: '🎓 Certified. Now go fill in your Planview timesheet.', color: 0x9b6bd6, tagY: 2.3 },
 };
 
 const GRAVITY = 6;
@@ -216,9 +216,10 @@ export class Chores {
       if (shredding && Math.random() < dt * 45) this.emitStrip(this.shredder);
     } else if (this.shredder) this.shredder.model.position.x = 0;
 
-    // eAcademy: the wall TV swaps its security jokes for the deck, one slide every couple of seconds of watching
+    // eAcademy: the wall TV swaps its security jokes for the deck, one slide every ~4s of watching
     const tc = this.world.tv?.chore;
-    this.world.tv?.model.userData.show(tc ? Math.min(TRAINING_SLIDES.length - 1, Math.floor((tc.t / CHORES.training.time) * TRAINING_SLIDES.length)) : -1, t);
+    const tp = tc ? tc.t / CHORES.training.time : 0;
+    this.world.tv?.model.userData.show(tc ? Math.min(TRAINING_SLIDES.length - 1, Math.floor(tp * TRAINING_SLIDES.length)) : -1, t, tp);
 
     for (const st of this.list) st.chore.tag.position.y += Math.sin(t * 4) * 0.002;
     this.drops.update(dt);
