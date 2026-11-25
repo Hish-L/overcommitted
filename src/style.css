@@ -353,12 +353,20 @@ body.touch #status { left: 50%; transform: translateX(-50%); bottom: auto; top: 
 #go-banner { display: none; }
 #gameover.townhall #go-banner {
   display: block; align-self: center; width: 70%; margin-top: .3em; padding: .3em 0; text-align: center;
-  font-size: clamp(20px, min(2.6vw, 4vh), 40px); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #fff;
-  background: linear-gradient(90deg, transparent, rgba(31,163,107,.85) 18%, rgba(43,182,115,.95) 50%, rgba(31,163,107,.85) 82%, transparent);
-  text-shadow: 0 2px 6px rgba(0,0,0,.35);
+  font-size: clamp(20px, min(2.6vw, 4vh), 40px); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: #4a2e05;
+  /* shiny gold: a white glint sweeping over a gold gradient, edges faded out like a ribbon */
+  background:
+    linear-gradient(100deg, transparent 35%, rgba(255,255,255,.75) 50%, transparent 65%) 0 0 / 250% 100% no-repeat,
+    linear-gradient(180deg, #fff1a8 0%, #f7cf4a 35%, #d99a1e 70%, #f4c542 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+  text-shadow: 0 1px 0 rgba(255,245,200,.8);
   pointer-events: none; user-select: none;
-  opacity: 0; animation: th-banner .6s cubic-bezier(.2,1.4,.4,1) forwards; animation-delay: calc(.6s + 13 * .14s); /* last in the deal, after the thank-you */
+  opacity: 0;
+  animation: th-banner .6s cubic-bezier(.2,1.4,.4,1) forwards, th-glint 2.6s ease-in-out infinite;
+  animation-delay: calc(.6s + 13 * .14s), calc(1.2s + 13 * .14s); /* last in the deal, after the thank-you */
 }
+@keyframes th-glint { 0% { background-position: 150% 0, 0 0; } 60%, 100% { background-position: -150% 0, 0 0; } }
 @keyframes th-banner { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
 #gameover.townhall #go-stats { grid-template-columns: 1fr 1fr; gap: 0.3em 1.6em; font-size: clamp(15px, min(2.2vw, 3vh), 34px); margin: 0.8em 0; }
 #gameover.townhall #go-stats div { padding: 0.45em 0; }
