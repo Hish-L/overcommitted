@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { makePerson, labelSprite } from './models.js';
 
-const SPEED = 3.2;
+const SPEED = 1.6; // a stroll, not a sprint
 const LINES = [
   'CIO OVERRIDE!',
   'This is now priority zero!',
@@ -95,7 +95,7 @@ export class Phil {
       }
     }
     // crazy: legs pumping, arms windmilling over his head, the odd spin-and-hop
-    this.walkT += dt * 14;
+    this.walkT += dt * 8;
     const s = Math.sin(this.walkT);
     ud.legL.rotation.x = s * 0.8;
     ud.legR.rotation.x = -s * 0.8;

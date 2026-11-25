@@ -124,6 +124,17 @@ export const RECIPES = [
 ];
 
 // ---------------------------------------------------------------------------
+// TOWN HALL STATIONS: the only desks open in town hall mode. Each takes over a
+// normal station's seat and item (key = which one); every other station closes.
+// ---------------------------------------------------------------------------
+export const TOWNHALL_STATIONS = {
+  X: { label: 'PenTest', lines: ['We popped prod again lol', 'Scope? What scope?', 'Fresh 0-day, still warm.'] },
+  T: { label: 'SBD',     lines: ['Did anyone threat model this?', 'Secure by design, not by accident.', 'Have you considered... zero trust?'] },
+  K: { label: 'AppSec',  lines: ['Your dependencies have dependencies.', 'SAST found 9,000 issues. Most are real.', 'Please stop committing secrets.'] },
+  L: { label: 'DCA',     lines: ['Here you go. Don\'t lose it.', 'Another one? Sure.', 'It\'s in the system now.'] },
+};
+
+// ---------------------------------------------------------------------------
 // TOWN HALL DEMO: the division's real achievements, delivered in this order.
 // Add a line per achievement. `from` is who hands it over:
 //   K AI Vendor · X Pentest Team · L SOC · T Sec Architect · H IT Helpdesk

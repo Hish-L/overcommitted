@@ -1,7 +1,7 @@
 // Core game state + rules: player movement, carrying, stations, initiatives,
 // chaos events and the inevitable collapse.
 import * as THREE from 'three';
-import { ITEMS, PROCESS, RECIPES, REQUESTERS, STATIONS, TOWNHALL_TICKETS, TUNING } from './data.js';
+import { ITEMS, PROCESS, RECIPES, REQUESTERS, STATIONS, TOWNHALL_STATIONS, TOWNHALL_TICKETS, TUNING } from './data.js';
 import { makePlayer, makeItemMesh, emojiSprite, emojiTexture, tickMatrix, labelSprite } from './models.js';
 import { HotDesk } from './hotdesk.js';
 import { Phil } from './phil.js';
@@ -207,6 +207,7 @@ export class Game {
     this.chaosIn = TUNING.chaosStart; // town hall: set per story ticket in updateAchievements
     this.chaosN = 0; // town hall takes its interruptions in turn, so the story shows all of them
     this.slowT = 0;
+    this.peekIn = 25; // Ross leans in to check on you every 25s, starting after the first delivery
     this.outageT = 0;
     this.shake = 0;
     this.lastRecipe = null;
@@ -217,6 +218,7 @@ export class Game {
   start(mode = 'normal') {
     this.mode = mode;
     this.reset();
+    this.setStations();
     // "Check In": the lift sets off up the glass shaft straight away and the
     // camera glides from the menu shot into the player's eyes inside it
     this.state = 'intro';
@@ -235,6 +237,26 @@ export class Game {
       // start looking wherever the camera already is (menu shot, or the game-over view)
       at: new THREE.CatmullRomCurve3([this.camera.position.clone().addScaledVector(this.camera.getWorldDirection(v()), 30), v(), v()]),
     };
+  }
+
+  // town hall: only the TOWNHALL_STATIONS desks stay open, renamed; the other
+  // dispensers close (person, sign and icon hidden). Normal mode restores them.
+  setStations() {
+    for (const st of this.world.stations) {
+      if (st.def.kind !== 'dispenser') continue;
+      const th = this.townhall && TOWNHALL_STATIONS[st.key];
+      const open = !this.townhall || !!th;
+      const label = th?.label ?? st.def.label;
+      st.dispense = open ? { item: st.def.item, label, lines: th?.lines ?? st.def.lines } : null;
+      for (const o of [st.npc, st.icon, st.label]) if (o) o.visible = open;
+      st.seatBump ??= st.bump;
+      st.bump = open ? st.seatBump : null; // no invisible person to bump into
+      if (st.label) {
+        const d = st.label.userData;
+        d.text = `${label} ${ITEMS[st.def.item].emoji}`;
+        if (d.el) d.el.textContent = d.text;
+      }
+    }
   }
 
   showBody(v) {
@@ -339,6 +361,10 @@ export class Game {
     this.updateOrders(dt);
     this.updateChaos(dt);
     this.updateBeacon();
+    if (this.stats.delivered && (this.peekIn -= dt) <= 0) { // only once the first ticket is in
+      this.peekIn = 25;
+      this.ui.peek();
+    }
 
     // town hall: fires and late tickets hurt, but can't end it before the last achievement
     if (this.townhall) this.confidence = Math.max(25, this.confidence);
@@ -765,7 +791,7 @@ export class Game {
       if (kind === 'shred' && Math.random() < dt * 6) sfx.shred();
       if (kind === 'water' && Math.random() < dt * 12) sfx.drip();
       // the meeting: Pat, Lorna and Shiv take turns saying nothing
-      if (kind === 'meeting' && Math.random() < dt * 0.9) this.npcSay(pick(this.world.stations.filter((s) => s.key === 'M')), pick(MEETING_LINES));
+      if (kind === 'meeting' && Math.random() < dt * 0.9) this.npcSay(pick(this.world.stations.filter((s) => s.key === 'M')), pick(MEETING_LINES), 'big');
       if (this.chores.work(st, dt)) {
         sfx.done();
         this.ui.float(st.slot, CHORES[kind].done, 'good');
@@ -825,10 +851,10 @@ export class Game {
     };
   }
 
-  npcSay(st, text) {
+  npcSay(st, text, cls) {
     if (!st.npc) return;
     st.npc.userData.talkT = 0.5;
-    this.ui.bubble(st.npc, text);
+    this.ui.bubble(st.npc, text, cls);
   }
 
   describeHeld() {
@@ -1019,7 +1045,7 @@ export class Game {
       if (this.spawnIn <= 0) {
         if (this.orders.length >= TUNING.maxBacklog) return this.endGame('backlog');
         this.done = []; // the finished story cards make room for the pile-up
-        add(pick(RECIPES).name, pick(['K', 'X', 'L', 'T', 'H']), 30, true);
+        add(pick(RECIPES).name, pick(Object.keys(TOWNHALL_STATIONS)), 30, true);
         this.spawnInterval = Math.max(1.5, this.spawnInterval * 0.9);
         this.spawnIn = this.spawnInterval;
       }

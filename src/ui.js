@@ -142,6 +142,31 @@ export class UI {
     this.thumbsT = setTimeout(() => el.classList.remove('show'), ms);
   }
 
+  // Ross leans in from a random screen edge for a couple of seconds, just checking in
+  peek(ms = 2000) {
+    const el = $('#peek');
+    const at = `${5 + Math.random() * 55}%`; // somewhere along that edge
+    // [position, hidden/shown transform axis and sign, image turn so his head points in]
+    const sides = [
+      [{ left: 0, top: at }, 'X', -1, 90],
+      [{ right: 0, top: at }, 'X', 1, -90],
+      [{ top: 0, left: at }, 'Y', -1, 180],
+      [{ bottom: 0, left: at }, 'Y', 1, 0],
+    ];
+    const [pos, axis, sign, rot] = sides[(Math.random() * sides.length) | 0];
+    el.classList.remove('show');
+    el.style.cssText = 'transition: none; left: auto; top: auto';
+    Object.assign(el.style, pos);
+    el.style.setProperty('--hide', `translate${axis}(${sign * 100}%)`);
+    el.style.setProperty('--show', `translate${axis}(${sign * 60}%)`);
+    el.style.setProperty('--rot', `${rot}deg`);
+    void el.offsetWidth; // jump off-screen on the new edge before sliding in
+    el.style.transition = '';
+    el.classList.add('show');
+    clearTimeout(this.peekT);
+    this.peekT = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
   banner(title, text, kind = 'bad', ms = 3800) {
     const el = $('#banner');
     el.className = `show ${kind}`;
@@ -161,11 +186,11 @@ export class UI {
   }
 
   // -------------------------------------------- world-anchored text (DOM) --
-  bubble(obj, text) {
+  bubble(obj, text, cls = '') {
     const old = this.bubbles.find((b) => b.obj === obj && b.kind === 'bubble');
     if (old) { old.el.remove(); this.bubbles.splice(this.bubbles.indexOf(old), 1); }
     const el = document.createElement('div');
-    el.className = 'bubble';
+    el.className = `bubble ${cls}`;
     el.textContent = text;
     $('#world-ui').appendChild(el);
     this.bubbles.push({ kind: 'bubble', obj, el, t: 2.6, y: 1.55 * (obj.scale?.x ?? 1) });
