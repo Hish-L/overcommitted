@@ -207,7 +207,7 @@ function frame(now) {
   pollPad(dt);
   // controller on the menus: A/✕ = Check In (or play again), Y/△ = Town hall demo
   if (device.pad && (game.state === 'menu' || game.state === 'over')) {
-    if (pressed.has('Space')) pressed.add('Enter');
+    if (pressed.has('Space') && !(game.state === 'over' && mode === 'townhall')) pressed.add('Enter');
     if (pressed.has('KeyY') && game.state === 'menu') startGame('townhall');
   }
   if (pressed.has('Tab')) toggleGuide();

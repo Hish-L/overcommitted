@@ -1,9 +1,16 @@
 // Tiny synth sound effects via WebAudio — no asset files.
 let ctx = null;
 let muted = false;
+let master = null;
+const VOLUME = 0.5; // default master volume (50%)
 
 function ac() {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = VOLUME;
+    master.connect(ctx.destination);
+  }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
 }
@@ -19,7 +26,7 @@ function tone(freq, dur = 0.12, type = 'square', vol = 0.06, when = 0, slide = 0
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(a.destination);
+  o.connect(g).connect(master);
   o.start(t);
   o.stop(t + dur + 0.02);
 }
@@ -41,5 +48,32 @@ export const sfx = {
   shred: () => tone(120, 0.3, 'sawtooth', 0.05, 0, 60),
   ruin: () => tone(400, 0.4, 'sine', 0.06, 0, -300),
   dash: () => tone(250, 0.08, 'sine', 0.04, 0, 300),
+  // town hall finale: an original 8-bit victory jingle, ~7 s. Square-wave lead,
+  // a softer square harmony, triangle bass and a ticking hi-hat, NES style.
+  fanfare: () => {
+    const e = 0.2; // one eighth note at 150 bpm
+    const N = (n) => 440 * 2 ** ((n - 69) / 12); // MIDI note -> Hz
+    // [note, eighths]; four bars of eight eighths, then the last chord rings out
+    const lead = [
+      [72, 1], [76, 1], [79, 1], [84, 1], [83, 1], [79, 1], [76, 1], [79, 1],
+      [81, 1], [77, 1], [81, 1], [84, 1], [83, 1], [79, 1], [74, 1], [79, 1],
+      [76, 1], [79, 1], [84, 1], [88, 1], [86, 1], [84, 1], [83, 1], [81, 1],
+      [79, 1], [81, 1], [83, 1], [86, 1], [84, 6],
+    ];
+    const harmony = [[64, 8], [65, 8], [67, 8], [67, 4], [76, 6]];
+    const bass = [[48, 2], [55, 2], [48, 2], [55, 2], [53, 2], [60, 2], [55, 2], [50, 2],
+      [48, 2], [55, 2], [52, 2], [57, 2], [55, 2], [43, 2], [48, 6]];
+    const play = (part, type, vol, gap = 0.9) => {
+      let t = 0;
+      for (const [n, len] of part) {
+        tone(N(n), len * e * gap, type, vol, t);
+        t += len * e;
+      }
+    };
+    play(lead, 'square', 0.05);
+    play(harmony, 'square', 0.018, 0.97);
+    play(bass, 'triangle', 0.12, 0.95);
+    for (let i = 0; i < 32; i++) tone(7000 + Math.random() * 2000, 0.02, 'square', i % 2 ? 0.006 : 0.012, i * e); // hi-hat
+  },
   gameover: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.35, 'triangle', 0.08, i * 0.3)); },
 };

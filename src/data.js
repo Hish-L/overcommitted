@@ -218,6 +218,6 @@ export const PERFORMANCE_REVIEWS = [
 
 export const GAME_OVER_REASONS = {
   backlog:    { title: 'BACKLOG OVERFLOW', text: 'The Jira board achieved sentience and filed a ticket against you.' },
-  townhall:   { title: '🏆 WHAT A YEAR', text: 'Look at everything that shipped. Thank you SCA for all your hard work!' },
+  townhall:   { title: '🏆 WHAT A YEAR', text: 'Thank you SCA for all your hard work!' },
   confidence: { title: 'LEADERSHIP HAS LOST CONFIDENCE', text: 'You\'ve been "reorganized" into a new team called "Special Projects".' },
 };

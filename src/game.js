@@ -1255,7 +1255,8 @@ export class Game {
     this.state = 'over';
     this.gameOverReason = this.mode === 'townhall' ? 'townhall' : reason;
     this.beacon.visible = false;
-    sfx.gameover();
+    if (this.mode === 'townhall') sfx.fanfare();
+    else sfx.gameover();
     this.ui.showGameOver(this);
   }
 

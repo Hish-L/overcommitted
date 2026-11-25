@@ -282,13 +282,13 @@ export class UI {
     const review = [...PERFORMANCE_REVIEWS].reverse().find((r) => s.delivered >= r.min);
     const pct = s.requested ? Math.round((s.delivered / s.requested) * 100) : 0;
     $('#go-title').textContent = reason.title;
+    if (game.mode === 'townhall') $('#go-title').innerHTML = `<span class="cup">🏆</span> <span class="shine">${reason.title.replace('🏆', '').trim()}</span> <span class="cup cup-r">🏆</span>`;
     $('#go-reason').textContent = reason.text;
     $('#go-review-title').textContent = review.title;
     $('#go-review-text').textContent = review.text;
     const th = game.mode === 'townhall';
     $('#gameover').classList.toggle('townhall', th);
-    $('#btn-restart').textContent = `Try again next ${th ? 'year' : 'quarter'} ↻`;
-    $('#go-stats').innerHTML = th ? TOWNHALL_TICKETS.map(({ name: n }) => `<div><span><i class="trophy">✅</i>${n}</span></div>`).join('') : [
+    $('#go-stats').innerHTML = th ? TOWNHALL_TICKETS.map(({ name: n, from }, i) => `<div style="--i:${i}"><span><i class="trophy">✅</i>${n}</span><b class="team team-${from}">${TOWNHALL_STATIONS[from].label}</b></div>`).join('') : [
       ['Initiatives requested', s.requested],
       ['Initiatives delivered', `${s.delivered} (${pct}%)`],
       ['Delivered late', s.lateDelivered],
@@ -304,6 +304,10 @@ export class UI {
     const best = Math.max(game.score, Number(localStorage.getItem('overcommitted-best') || 0));
     localStorage.setItem('overcommitted-best', best);
     $('#go-best').textContent = `Best shareholder value: $${best}M`;
+    if (th) { // the tagline goes under the title, the thank-you closes the card
+      $('#go-reason').textContent = '🚀 1 Magnificent Team · 1 Legendary Year';
+      $('#go-best').textContent = reason.text;
+    }
     this.show('#gameover', true);
     if (th) this.fireworks();
   }
