@@ -486,3 +486,12 @@ body.tv-view #work-bar, body.tv-view #held, body.tv-view #crosshair { display: n
 .team-X { background: #d9434b; } .team-K { background: #3b82e6; } .team-T { background: #8b5cf0; } .team-L { background: #1fa595; }
 #gameover.townhall #go-best { color: #ffd76a; font-weight: 800; font-size: clamp(18px, min(2.2vw, 3.4vh), 34px); margin: 0 0 .6em; opacity: 0; animation: th-row .5s ease forwards; animation-delay: calc(.6s + 12 * .14s); }
 #gameover.townhall .go-title .cup-r { animation-direction: reverse; } /* the two trophies rock in opposite directions */
+
+/* town hall finale type scale: everything sizes off --s (the achievement text), one role per line.
+   title 2.6× heavy · tagline 0.9× tracked caps · items 1× · thank-you 1.15× bold · banner 1.35× heavy caps */
+#gameover.townhall .card { --s: clamp(15px, min(2.2vw, 3vh), 34px); }
+#gameover.townhall .go-title { font-size: calc(var(--s) * 2.6); font-weight: 900; line-height: 1.1; letter-spacing: .02em; margin: 0; }
+#gameover.townhall #go-reason { font-size: calc(var(--s) * .9); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: #b9c3d8; margin: .5em 0 0; }
+#gameover.townhall #go-stats { font-size: var(--s); font-weight: 600; line-height: 1.25; margin: 1em 0; }
+#gameover.townhall #go-best { font-size: calc(var(--s) * 1.15); font-weight: 800; letter-spacing: .01em; line-height: 1.3; margin: .2em 0 .7em; }
+#gameover.townhall #go-banner { font-size: calc(var(--s) * 1.35); font-weight: 900; letter-spacing: .1em; line-height: 1.2; }
