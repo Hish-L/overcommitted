@@ -135,16 +135,25 @@ export const TOWNHALL_STATIONS = {
 };
 
 // ---------------------------------------------------------------------------
-// TOWN HALL DEMO: the division's real achievements, delivered in this order.
-// Add a line per achievement. `from` is who hands it over:
-//   K AI Vendor · X Pentest Team · L SOC · T Sec Architect · H IT Helpdesk
+// TOWN HALL DEMO: placeholder achievements (made up), delivered in this order
+// (PenTest opens with two, then the teams take turns). `from` is the town hall desk that hands it over:
+//   K AppSec · X PenTest · T SBD · L DCA
 // `story` is the line told in the big pop-up before the ticket flies up to the
 // top of the screen (leave it out for a plain ticket).
 // ---------------------------------------------------------------------------
 export const TOWNHALL_TICKETS = [
-  { name: 'Build the Hydra Scanner',         from: 'K', story: 'AI is here. It\'s time you build a code scanner.' },
-  { name: 'Clear the vulnerability mountain', from: 'L', story: 'The exceptions are piling up. Someone has to chase every exception.' },
-  { name: 'Deliver 250 pentest engagements', from: 'X', story: 'The business keeps shipping. Every launch needs a pentest first.' },
+  { name: 'Build the Hydra Scanner',          from: 'X', story: 'The robots are coming! Build a scanner before they find us first.' },
+  { name: 'Pentest 120 shiny apps',           from: 'X', story: 'Poke every internet-facing app before someone less friendly does.' },
+  { name: 'Train 30 Code Champions',          from: 'K', story: 'Turn 30 developers into champions who think security first.' },
+  { name: 'Launch the Blueprint Program',     from: 'T', story: 'Get secure patterns into every new design before it ships.' },
+  { name: 'Clear the vulnerability mountain', from: 'L', story: 'The criticals are stacking up. Clear the pile before it topples.' },
+  { name: '250 pentest engagements',          from: 'X', story: 'Go-live season! Get every launch tested before the deadline.' },
+  { name: 'Swap the scanner',                 from: 'K', story: 'Urgent: bolt automated security checks straight into the pipelines.' },
+  { name: 'Sunset the legacy platform',       from: 'T', story: 'Retire the old platform, ahead of schedule for once.' },
+  { name: 'Halve the overdue tickets',        from: 'L', story: 'Take back control of governance and wipe half the overdue items.' },
+  { name: 'Shields up on every app',          from: 'K', story: 'Quick! Switch on the baseline defences for every public app.' },
+  { name: 'Ship the first helper bot',        from: 'T', story: 'Launch the very first AI helper bot into production.' },
+  { name: 'Shine a light on encryption',      from: 'L', story: 'Find out where all the keys and certificates actually live.' },
 ];
 
 export const REQUESTERS = [
@@ -170,7 +179,8 @@ export const TUNING = {
   firstOrderDelay: 1.5,
   // town hall warm-up: [secs before the first story, secs after each story docks before its
   // interruption (calm first, then quicker), secs of quiet between stories]
-  townhallWarmup: [6, [15, 8, 4], 7],
+  townhallWarmup: [6, [15, 8, 4], 4],
+  townhallTimeLimit: 270,    // town hall: the demo ends on the achievements screen at 4:30
   spawnStart: 28,            // seconds between new initiatives at start
   spawnMin: 7,               // ...and it only gets worse
   spawnDecay: 0.92,          // multiplier per spawned initiative
@@ -208,6 +218,6 @@ export const PERFORMANCE_REVIEWS = [
 
 export const GAME_OVER_REASONS = {
   backlog:    { title: 'BACKLOG OVERFLOW', text: 'The Jira board achieved sentience and filed a ticket against you.' },
-  townhall:   { title: '🏆 WHAT A YEAR', text: 'Everything below shipped for real. Then the backlog caught up with you.' },
+  townhall:   { title: '🏆 WHAT A YEAR', text: 'Look at everything that shipped. Thank you SCA for all your hard work!' },
   confidence: { title: 'LEADERSHIP HAS LOST CONFIDENCE', text: 'You\'ve been "reorganized" into a new team called "Special Projects".' },
 };

@@ -353,6 +353,7 @@ export class Game {
     this.animateWorld(dt);
     if (this.state !== 'playing') return;
     this.time += dt;
+    if (this.townhall && this.time >= TUNING.townhallTimeLimit) return this.endGame('townhall');
 
     this.updatePlayer(dt, input);
     this.updateStations(dt);
@@ -1052,6 +1053,7 @@ export class Game {
     } else if (!this.orders.length && this.spawnIn <= 0 && !this.distracted()) { // don't pop the next story over a distraction
       const t = TOWNHALL_TICKETS[this.achieved.length];
       add(t.name, t.from, 90, false, t.story); // story tickets have no clock (the time is never counted down)
+      if (this.achieved.length % 2 === 0) this.orders[0].distracted = true; // only every 2nd ticket gets an interruption
       this.chaosIn = TUNING.townhallWarmup[1][this.achieved.length] ?? 3; // its one interruption comes this long after the pop-up docks
     }
     for (const o of this.orders) {
@@ -1081,6 +1083,7 @@ export class Game {
     this.achieved.push(o.recipe.name);
     o.done = true;
     this.done.push(o);
+    if (this.done.length > 6) this.done.shift(); // the ticket row keeps the 6 most recent wins
     this.spawnIn = TUNING.townhallWarmup[2]; // let the "Delivered!" banner clear and the player breathe before the next story
     this.ui.banner(`🏆 ${o.recipe.name}`, `Delivered! ${this.achieved.length} of ${TOWNHALL_TICKETS.length}`, 'good');
     this.ui.thumbsUp(pick(THUMBS_UP));
@@ -1176,7 +1179,7 @@ export class Game {
         this.ui.banner('📧 OUTLOOK IS BACK', 'You have 1,204 unread emails. As you were.', 'good');
       }
     }
-    // town hall story: exactly one interruption per ticket, a few seconds after its pop-up has docked
+    // town hall story: one interruption on every 2nd ticket, a few seconds after its pop-up has docked
     const story = this.townhall && !this.overload;
     const ticket = story && this.orders[0];
     if (story && (!ticket || ticket.distracted || this.time - ticket.born < TUNING.storyHold + 1)) return;
@@ -1187,7 +1190,7 @@ export class Game {
     const noPlants = (l) => (TUNING.plantsEvent ? l : l.filter((e) => e !== 'plants'));
     const events = noPlants(['incident', 'replyall', 'audit', 'plants', 'papers']);
     if (this.townhall && this.distracted()) return; // one interruption story at a time
-    const list = story ? ['meeting', 'training', 'outage'] : noPlants(['plants', 'papers', 'incident']);
+    const list = story ? ['meeting', 'training', 'outage', 'incident', 'papers'] : noPlants(['plants', 'papers', 'incident']);
     this.triggerChaos(this.townhall ? list[this.chaosN++ % list.length] : pick(events));
     if (ticket) ticket.distracted = true;
   }

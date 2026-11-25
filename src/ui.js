@@ -1,6 +1,6 @@
 // DOM-based HUD: initiative tickets, meters, toasts, speech bubbles, menus.
 import * as THREE from 'three';
-import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS, TOWNHALL_TICKETS } from './data.js';
+import { ITEMS, PROCESS, RECIPES, TUNING, PERFORMANCE_REVIEWS, GAME_OVER_REASONS, STATIONS, TOWNHALL_STATIONS, TOWNHALL_TICKETS } from './data.js';
 import { device, keyHint, onDeviceChange } from './device.js';
 import { labels } from './models.js';
 
@@ -37,8 +37,8 @@ export class UI {
         el.className = `ticket${o.story ? ' untimed' : ' enter'}${o.from ? ' achievement' : ''}`;
         el.innerHTML = `
           <div class="t-head"><span>${o.urgent ? '🚨' : ''}</span><span class="t-time"></span><span class="t-tick">✔ Delivered</span></div>
-          ${o.story ? `<div class="t-story">${o.story}</div>` : ''}
           <div class="t-name">${o.recipe.name}</div>
+          ${o.story ? `<div class="t-story">${o.story}</div>` : ''}
           <div class="t-needs">${o.recipe.needs.map((n) => `<span class="chip" data-n="${n}" title="${ITEMS[n].name}">${ITEMS[n].emoji}</span>`).join('')}</div>
           <div class="t-bar"><div></div></div>`;
         $('#orders').appendChild(el);
@@ -53,6 +53,7 @@ export class UI {
       el.querySelector('.t-time').textContent = o.overdue ? `OVERDUE ${fmt(o.timeLeft)}` : fmt(o.timeLeft);
       el.classList.toggle('overdue', o.overdue);
       el.classList.toggle('done', !!o.done);
+      if (o.done && o.story && !el.dataset.team) el.querySelector('.t-story').textContent = el.dataset.team = TOWNHALL_STATIONS[o.from].label; // delivered: credit the team
       if (o.done && el.classList.contains('pop')) { el.style.transform = ''; el.classList.remove('pop', 'dock'); } // delivered mid pop-up: dock now
       el.classList.toggle('urgent', o.urgent && !o.overdue);
       el.classList.toggle('panic', !o.overdue && p < 0.2);
@@ -73,7 +74,8 @@ export class UI {
     $('#score').textContent = `$${game.score}M`;
     const bl = game.orders.length;
     const counting = game.townhall && !game.overload; // town hall: achievements so far, until the finale
-    $('#backlog-box label').textContent = counting ? 'Achievements' : 'Backlog';
+    const left = Math.max(0, Math.ceil(TUNING.townhallTimeLimit - game.time));
+    $('#backlog-box label').textContent = counting ? `Achievements · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : 'Backlog';
     $('#backlog').textContent = counting ? `${game.achieved.length} / ${TOWNHALL_TICKETS.length}` : `${bl} / ${TUNING.maxBacklog}`;
     $('#backlog-box').classList.toggle('danger', !counting && bl >= TUNING.maxBacklog - 2);
     const bar = game.state === 'playing' && game.hudBar;
@@ -285,7 +287,8 @@ export class UI {
     $('#go-review-text').textContent = review.text;
     const th = game.mode === 'townhall';
     $('#gameover').classList.toggle('townhall', th);
-    $('#go-stats').innerHTML = th ? game.achieved.map((n) => `<div><span><i class="trophy">🏆</i>${n}</span><b>✅</b></div>`).join('') : [
+    $('#btn-restart').textContent = `Try again next ${th ? 'year' : 'quarter'} ↻`;
+    $('#go-stats').innerHTML = th ? TOWNHALL_TICKETS.map(({ name: n }) => `<div><span><i class="trophy">✅</i>${n}</span></div>`).join('') : [
       ['Initiatives requested', s.requested],
       ['Initiatives delivered', `${s.delivered} (${pct}%)`],
       ['Delivered late', s.lateDelivered],

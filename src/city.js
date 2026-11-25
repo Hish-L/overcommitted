@@ -400,85 +400,237 @@ function aonTower(scene) {
 }
 
 function harbourBridge(scene) {
-  // Distant landmark across the harbour to the north.
+  // Sydney Harbour Bridge, modelled from photos, in its real proportions (503 m
+  // span, arch top 134 m, deck 49 m, pylons 89 m): a two-hinged steel arch truss,
+  // deep at the ends and shallow at the crown, with the bottom chord springing
+  // from hinges at the shoreline. The deck runs through the arch, hung from it
+  // in the middle and propped on posts near the ends. Granite pylons, a pair at
+  // each end, then steel truss approach spans on granite piers. Hinges sit on
+  // the south (CBD) and north shores either side of the water.
+  const L = 160, k = L / 503; // span in units, units per metre
   const g = new THREE.Group();
-  g.position.set(190, GROUND, 40);
+  g.position.set(215, GROUND, 40);
   scene.add(g);
-  const steel = lambert({ color: 0x737a80 });
-  const granite = lambert({ color: 0xcbb994 });
-  const L = 150, top = 48, deck = 22;
-  for (const zz of [-5, 5]) {
-    for (const [hTop, hEnd] of [[top, deck - 6], [top - 7, deck - 2]]) {
-      const pts = [];
-      for (let i = 0; i <= 30; i++) {
-        const t = i / 30 * 2 - 1;
-        pts.push(new THREE.Vector3(t * L / 2, hEnd + (hTop - hEnd) * (1 - t * t), zz));
+  const steelMat = lambert({ color: 0x8b9297 });
+  const stoneTex = canvasTex(64, 64, (c, w, h) => {
+    c.fillStyle = '#e6dcc2';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(120, 100, 70, 0.3)'; // stone courses
+    for (let y = 0; y < h; y += 8) c.fillRect(0, y, w, 1);
+  });
+  stoneTex.repeat.set(1, 6);
+  const granite = lambert({ map: stoneTex });
+  const dark = lambert({ color: 0x3a3226 });
+
+  const steel = [], stone = [], holes = [], rails = [];
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const beam = (p, q, w, list = steel) => {
+    const geo = new THREE.BoxGeometry(w, p.distanceTo(q), w);
+    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), q.clone().sub(p).normalize()));
+    list.push(geo.translate((p.x + q.x) / 2, (p.y + q.y) / 2, (p.z + q.z) / 2));
+  };
+  const box = (x, y, z, w, h, d, list = stone) => list.push(new THREE.BoxGeometry(w, h, d).translate(x, y + h / 2, z));
+
+  const deckY = 49 * k, W = 49 * k, trussZ = 15 * k; // the two arch trusses are 30 m apart, the deck overhangs them
+  const hinge = 2, crownTop = 134 * k, crownBot = 116 * k, endTop = hinge + 57 * k;
+  const top = (x) => endTop + (crownTop - endTop) * (1 - (2 * x / L) ** 2);
+  const bot = (x) => hinge + (crownBot - hinge) * (1 - (2 * x / L) ** 2);
+  const P = 28; // panels
+  const xs = Array.from({ length: P + 1 }, (_, i) => -L / 2 + (i / P) * L);
+
+  for (const z of [-trussZ, trussZ]) {
+    xs.forEach((x, i) => {
+      beam(V(x, bot(x), z), V(x, top(x), z), 0.5); // posts
+      if (i < P) {
+        const n = xs[i + 1];
+        beam(V(x, top(x), z), V(n, top(n), z), 1.1); // top chord
+        beam(V(x, bot(x), z), V(n, bot(n), z), 1.4); // bottom chord
+        // diagonals lean towards the crown on each half
+        if (x + n < 0) beam(V(x, bot(x), z), V(n, top(n), z), 0.4);
+        else beam(V(x, top(x), z), V(n, bot(n), z), 0.4);
       }
-      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.9, 6), steel));
-    }
-    for (let i = -6; i <= 6; i++) {
-      const xx = (i / 7) * L / 2;
-      const t = xx / (L / 2);
-      const y1 = deck, y2 = deck - 6 + (top - deck + 6) * (1 - t * t);
-      const v = new THREE.Mesh(new THREE.BoxGeometry(0.6, Math.abs(y2 - y1) + 0.1, 0.6), steel);
-      v.position.set(xx, (y1 + y2) / 2, zz);
-      g.add(v);
-    }
+      // hangers down to the deck in the middle, posts up to it near the ends
+      if (Math.abs(x) < L / 2 - 0.1) beam(V(x, bot(x), z), V(x, deckY, z), bot(x) > deckY ? 0.25 : 0.6);
+    });
   }
-  const d = new THREE.Mesh(new THREE.BoxGeometry(L + 70, 1.6, 13), steel);
-  d.position.y = deck;
-  g.add(d);
+  // wind bracing between the two trusses
+  xs.forEach((x, i) => {
+    beam(V(x, top(x), -trussZ), V(x, top(x), trussZ), 0.4);
+    if (bot(x) > deckY + 2) beam(V(x, bot(x), -trussZ), V(x, bot(x), trussZ), 0.4);
+    if (i < P) {
+      const n = xs[i + 1];
+      beam(V(x, top(x), -trussZ), V(n, top(n), trussZ), 0.25);
+      beam(V(x, top(x), trussZ), V(n, top(n), -trussZ), 0.25);
+    }
+  });
+  // flags on the crown
+  for (const dz of [-1.2, 1.2]) beam(V(0, crownTop, dz), V(0, crownTop + 3, dz), 0.1);
+
+  // deck through the arch and over both approaches
+  const pylonX = L / 2 + 4.5, approach = 34, end = pylonX + 4 + approach;
+  box(0, deckY - 1.2, 0, 2 * end, 1.2, W, steel);
+  for (const z of [-W / 2, W / 2]) beam(V(-end, deckY + 0.5, z), V(end, deckY + 0.5, z), 0.25, rails); // parapets
+
   for (const sx of [-1, 1]) {
-    for (const zz of [-6, 6]) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(7, deck + 18, 5), granite);
-      p.position.set(sx * (L / 2 + 4), (deck + 18) / 2, zz);
-      g.add(p);
+    // hinge bearings on the shore
+    box(sx * (L / 2 + 1), 0, 0, 6, hinge + 0.5, 2 * trussZ + 4);
+    // pylons, one either side of the deck: plinth, tapering shaft, string course,
+    // upper stage with its arched opening facing along the bridge, stepped cap
+    for (const sz of [-1, 1]) {
+      const px = sx * pylonX, pz = sz * (W / 2 + 3.2);
+      const H = 89 * k;
+      box(px, 0, pz, 9, 3, 7.4);
+      box(px, 3, pz, 8, H * 0.62, 6.4);
+      box(px, 3 + H * 0.62, pz, 8.4, 0.7, 6.8);
+      box(px, 3.7 + H * 0.62, pz, 7.4, H * 0.25, 5.8);
+      box(px, 3.7 + H * 0.87, pz, 7.8, 0.6, 6.2);
+      box(px, 4.3 + H * 0.87, pz, 6, 1.4, 4.6);
+      for (const fx of [-1, 1]) box(px + fx * 3.72, 3.7 + H * 0.62 + 1.5, pz, 0.1, H * 0.15, 2.4, holes); // arched opening
     }
+    // approach spans: a Warren truss under each deck edge, on granite piers
+    const x0 = sx * (pylonX + 4), x1 = sx * end, d = 4;
+    for (const z of [-W / 2 + 1, W / 2 - 1]) {
+      beam(V(x0, deckY - 1.2 - d, z), V(x1, deckY - 1.2 - d, z), 0.6);
+      const n = 10;
+      for (let i = 0; i < n; i++) {
+        const xa = x0 + ((x1 - x0) * i) / n, xb = x0 + ((x1 - x0) * (i + 1)) / n;
+        beam(V(xa, deckY - 1.2 - (i % 2 ? 0 : d), z), V(xb, deckY - 1.2 - (i % 2 ? d : 0), z), 0.35);
+      }
+    }
+    for (let i = 1; i <= 3; i++) box(x0 + ((x1 - x0) * i) / 3, 0, 0, 3, deckY - 1.2 - d, W - 1);
   }
+
+  g.add(new THREE.Mesh(mergeGeometries(steel), steelMat));
+  g.add(new THREE.Mesh(mergeGeometries(stone), granite));
+  g.add(new THREE.Mesh(mergeGeometries(holes), dark));
+  g.add(new THREE.Mesh(mergeGeometries(rails), lambert({ color: 0x5c6268 })));
 }
 
 function sydneyTower(scene, x, z) {
-  // Centrepoint (Sydney Tower Eye), Pitt & Market St, south-east of us. Slim
-  // shaft braced by cable stays, golden turret near the top, then a spire.
-  // Height compressed so the turret sits in frame from our floor.
+  // Centrepoint (Sydney Tower Eye), Pitt & Market St, south-east of us, modelled
+  // from photos: a thin bronze core in a lattice of bronze cables (fanned out to
+  // the Westfield roof, pinched in up top), a gold turret with dark window bands
+  // that flares slightly outwards, a dark underside, a narrower gold upper drum
+  // with the red Westfield sign and a ring of white dishes, then a white spire
+  // with an antenna cage. Height compressed so the turret sits in frame from our floor.
   const g = new THREE.Group();
   g.position.set(x, GROUND, z);
   scene.add(g);
-  const concrete = lambert({ color: 0xd8d8d2 });
-  const steel = lambert({ color: 0x9aa0a4 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xd9a93e, emissive: 0x3a2706, metalness: 0.6, roughness: 0.35 });
-  const dark = lambert({ color: 0x2f3a42 });
-  const cyl = (r1, r2, h, y, mat, segs = 24) => {
+  const podium = lambert({ color: 0xd9d3c4 });
+  const glass = lambert({ color: 0x33414b });
+  const bronze = lambert({ color: 0x4a2f1c });
+  const cableMat = lambert({ color: 0xd9b980 });
+  const gold = lambert({ color: 0xe8d29c }); // pale champagne anodised cladding
+  // turret windows: dark panes between gold mullions, wrapped round each window band
+  const winTex = canvasTex(32, 32, (c, w, h) => {
+    c.fillStyle = '#e8d29c';
+    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#1e2429';
+    c.fillRect(3, 1, w - 6, h - 2);
+  });
+  winTex.repeat.set(56, 1);
+  const windows = lambert({ map: winTex });
+  const dark = lambert({ color: 0x23282c });
+  const white = lambert({ color: 0xf2f2ee });
+  const cyl = (r1, r2, h, y, mat, segs = 32) => {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, segs), mat);
     m.position.y = y + h / 2;
     g.add(m);
+    return m;
   };
-  const podH = 10, shaftTop = 132;
-  cyl(13, 13, podH, 0, concrete, 8); // Westfield podium
-  cyl(2.4, 2.4, shaftTop - podH, podH, concrete, 12);
-  // cable stays: from a ring on the podium roof to collars on the shaft
-  for (const collar of [70, shaftTop - 2]) {
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const from = new THREE.Vector3(Math.cos(a) * 9, podH, Math.sin(a) * 9);
-      const to = new THREE.Vector3(Math.cos(a) * 2.6, collar, Math.sin(a) * 2.6);
-      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, from.distanceTo(to), 4), steel);
-      c.position.copy(from).add(to).multiplyScalar(0.5);
-      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
-      g.add(c);
-    }
+  const ring = (r, y, tube, mat) => {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 6, 32), mat);
+    m.rotation.x = Math.PI / 2;
+    m.position.y = y;
+    g.add(m);
+  };
+  const rod = (from, to, r) => {
+    const geo = new THREE.CylinderGeometry(r, r, from.distanceTo(to), 4);
+    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize()));
+    return geo.translate((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
+  };
+  const at = (r, a, y) => new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r);
+
+  // Westfield Sydney podium: a pale block with a dark glazed band
+  const podH = 10, shaftTop = 132, collar = podH + (shaftTop - podH) * 0.4;
+  const pod = new THREE.Mesh(new THREE.BoxGeometry(26, podH, 26), podium);
+  pod.position.y = podH / 2;
+  const band = new THREE.Mesh(new THREE.BoxGeometry(26.2, 2.4, 26.2), glass);
+  band.position.y = podH * 0.62;
+  g.add(pod, band);
+
+  // core
+  cyl(2, 2, shaftTop - podH, podH, bronze, 16);
+  // cables: a wide fan from the podium roof up to a collar, then two opposite-twisted
+  // sets from the collar to the turret, which cross into the lattice (a hyperboloid)
+  const cables = [];
+  const N = 18;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    cables.push(rod(at(8, a, podH), at(3.6, a, collar), 0.07));
+    for (const twist of [0.7, -0.7]) cables.push(rod(at(3.6, a, collar), at(4, a + twist, shaftTop), 0.06));
   }
-  // turret: flared underside, gold bands alternating with dark window bands
-  cyl(7.5, 2.6, 4, shaftTop, gold);
-  let y = shaftTop + 4;
-  for (const [r, h, mat] of [[7.6, 1.5, gold], [7.4, 2.2, dark], [7.6, 1.2, gold], [7.4, 2.2, dark], [7.6, 1.5, gold], [7.2, 1.6, dark], [7.4, 1.4, gold]]) {
-    cyl(r, r, h, y, mat);
+  g.add(new THREE.Mesh(mergeGeometries(cables), cableMat));
+  ring(3.7, collar, 0.3, bronze);
+  ring(3.4, collar + (shaftTop - collar) * 0.6, 0.2, bronze);
+
+  // turret underside: lift collar, then a broad dark dish
+  cyl(4.1, 4.1, 1.2, shaftTop, dark);
+  cyl(7.8, 4, 2.6, shaftTop + 1.2, dark);
+  // main turret: gold, flaring outwards, with four dark window bands
+  let y = shaftTop + 3.8;
+  const bodyH = 10.8, r0 = 7.8, r1 = 8.6;
+  const rAt = (yy) => r0 + ((yy - (shaftTop + 3.8)) / bodyH) * (r1 - r0);
+  for (const [h, mat] of [[1.6, gold], [1.1, windows], [1.4, gold], [1.1, windows], [1.4, gold], [1.1, windows], [1.4, gold], [1.1, windows], [0.6, gold]]) {
+    cyl(rAt(y + h), rAt(y), h, y, mat);
     y += h;
   }
-  cyl(4, 7.4, 3, y, gold); // domed roof
-  y += 3;
-  cyl(0.5, 1.6, 26, y, steel, 8); // spire
-  cyl(1.6, 1.6, 0.6, y + 6, steel, 8);
+  // Skywalk: railing round the roof edge and a platform poking out over it
+  ring(r1 - 0.2, y + 0.6, 0.06, white);
+  const sky = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.3, 1.6), white);
+  sky.position.set(r1 + 0.4, y + 0.1, 0);
+  g.add(sky);
+  cyl(r1 - 0.4, r1, 0.3, y, gold); // roof deck
+
+  // upper drum with the Westfield sign, facing our office
+  const upR = 4.8, upY = y + 0.3;
+  cyl(upR, upR, 5, upY, gold);
+  const signTex = canvasTex(512, 128, (c, w, h) => {
+    c.fillStyle = '#e1251b';
+    c.font = 'italic bold 104px Georgia, "Times New Roman", serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('Westfield', w / 2, h / 2 + 6, w - 16);
+  }, false);
+  const arc = 1.5;
+  const face = Math.atan2(-x, -z); // CylinderGeometry angle that points back at us (the origin)
+  const sign = new THREE.Mesh(
+    new THREE.CylinderGeometry(upR + 0.15, upR + 0.15, 2.8, 24, 1, true, face - arc / 2, arc),
+    lambert({ map: signTex, transparent: true, alphaTest: 0.1 }),
+  );
+  sign.position.y = upY + 2.4;
+  g.add(sign);
+  // ring of white dishes, then the cap: grey ribbed underside, gold top
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const d = new THREE.Mesh(new THREE.SphereGeometry(0.4, 6, 4), white);
+    d.position.copy(at(upR + 0.3, a, upY + 5.4));
+    g.add(d);
+  }
+  cyl(5.6, 4.8, 1, upY + 5, lambert({ color: 0x9a9890 }));
+  cyl(5.6, 5.6, 2, upY + 6, gold);
+  y = upY + 8;
+  // roof antennas and the spire with its antenna cage
+  const sticks = [];
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2, r = 2.5 + (i % 3) * 1.1;
+    sticks.push(rod(at(r, a, y), at(r, a, y + 1.5 + (i % 4) * 0.6), 0.06));
+  }
+  g.add(new THREE.Mesh(mergeGeometries(sticks), white));
+  cyl(0.7, 1.1, 4, y, white, 12);
+  cyl(0.35, 0.5, 14, y + 4, white, 8);
+  cyl(1, 1, 3, y + 18, white, 6); // antenna cage
+  cyl(0.12, 0.12, 4, y + 21, white, 4); // lightning rod
 }
 
 function ferry(scene) {
@@ -647,6 +799,7 @@ export function buildCity(scene, W, H) {
     { x0: 44, x1: 101, z0: -26, z1: 0 },    // Aon Tower / Maritime Trade Towers
     { x0: -30, x1: 30, z0: 14, z1: 40 },    // keep the Kent St facade visible
     { x0: -305, x1: -275, z0: 105, z1: 135 }, // Sydney Tower
+    { x0: 85, x1: 130, z0: 30, z1: 50 },    // Harbour Bridge southern approach
   ];
   for (let i = -14; i <= 9; i++) {
     for (let j = -14; j <= 12; j++) {
